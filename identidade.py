@@ -37,12 +37,10 @@ ANO = "2026"
 LICENCA = "GNU General Public License v3 or later"
 LICENCA_URL = "https://www.gnu.org/licenses/gpl-3.0.html"
 
-# ATENCAO - POR MUDAR ANTES DE DISTRIBUIR.
-# Isto e um endereco de exemplo, que nao existe. Enquanto a app for so para
-# uso proprio, passa despercebido; a partir do momento em que ande por outras
-# maos, a MusicBrainz pode bloquear os pedidos por o contacto ser falso.
-# Substituir por um email ou pelo endereco de uma pagina do projeto que exista
-# mesmo - e o que os servicos usam para falar com quem fez a app.
-CONTACTO = "https://github.com/local/tago"
+# O contacto de quem fez a app, que vai em cada pedido as fontes de pesquisa.
+# Tem de existir mesmo: a MusicBrainz exige-o e pode bloquear os pedidos se
+# for falso. E por aqui que os servicos falam com quem fez a app - por
+# exemplo, se ela estiver a pedir de mais.
+CONTACTO = "nraiprojects@gmail.com"
 
 AGENTE = f"{NOME}/{VERSAO} ( {CONTACTO} )"
