@@ -1,0 +1,31 @@
+# Chaves das fontes de pesquisa. NUNCA pode ir para o repositorio: tem o
+# Client Secret do Spotify e o token do Discogs, que sao pessoais. Hoje a app
+# guarda-o em %APPDATA%\TaGo, mas ficou uma copia antiga nesta pasta.
+credenciais.json
+chave_acoustid.txt
+
+# Coisas do computador de quem usa a app, nao do projeto.
+definicoes.json
+cache_procuras.json
+cache_ondas.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Empacotamento. O .spec e refeito de cada vez pelo empacotar.py, nao e
+# codigo nosso - por isso tambem nao vai para o repositorio.
+build/
+dist/
+*.spec
+Output/
+
+# Copias de seguranca que a app faz nas pastas de musica
+_backup_tags/
+
+# Windows
+Thumbs.db
+desktop.ini

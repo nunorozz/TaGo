@@ -1,0 +1,38 @@
+<svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#F2D024"/>
+      <stop offset="100%" stop-color="#F2D024"/>
+    </linearGradient>
+    <linearGradient id="bgGrad3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0A0F0C"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </linearGradient>
+  </defs>
+
+  <!-- background -->
+  <rect x="0" y="0" width="600" height="600" rx="90" fill="url(#bgGrad3)"/>
+
+  <!-- equalizer bars, cut horizontally, leaving a gap in the middle for the wordmark -->
+  <g fill="url(#greenGrad)">
+    <!-- bar 2 -->
+    <rect x="215" y="230" width="20" height="40"/>
+    <!-- bar 3 -->
+    <rect x="245" y="170" width="20" height="100"/>
+    <!-- bar 4 -->
+    <rect x="275" y="200" width="20" height="70"/>
+    <!-- bar 5 -->
+    <rect x="305" y="140" width="20" height="130"/>
+    <!-- bar 6 -->
+    <rect x="335" y="210" width="20" height="60"/>
+    <!-- bar 7 -->
+    <rect x="365" y="175" width="20" height="95"/>
+  </g>
+
+  <!-- wordmark, centered in the gap, equal spacing between letters -->
+  <text x="302" y="317" text-anchor="middle"
+        font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif"
+        font-weight="900" font-size="50"
+        letter-spacing="5"
+        fill="url(#greenGrad)">TAGO</text>
+</svg>
