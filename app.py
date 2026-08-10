@@ -221,7 +221,7 @@ class App(ctk.CTk):
     def _construir_acoes(self):
         barra = ctk.CTkFrame(self, corner_radius=0)
         barra.grid(row=1, column=0, sticky="ew")
-        barra.grid_columnconfigure(4, weight=1)
+        barra.grid_columnconfigure(3, weight=1)
 
         # Os dois passos principais levam a cor de destaque: sao os unicos
         # botoes amarelos da janela, por isso nao ha duvidas por onde comecar.
@@ -236,36 +236,24 @@ class App(ctk.CTk):
             text_color=tema.TEXTO_ESCURO, command=self._analisar)
         self.btn_analisar.grid(row=0, column=0, padx=(14, 6), pady=10)
 
-        self.btn_identificar = ctk.CTkButton(
-            barra, text="SEARCH TAGS", width=LARGURA_PASSO, height=30,
-            font=tema.titulo(12),
-            fg_color=tema.DESTAQUE, hover_color=tema.DESTAQUE_ALTO,
-            text_color=tema.TEXTO_ESCURO,
-            # Comeca desligado (so se pode procurar depois de analisar), e o
-            # customtkinter apaga sozinho a letra dos botoes desligados. Sem
-            # isto, ficava com a letra mais fraca do que o Scan Folder.
-            text_color_disabled=tema.TEXTO_ESCURO,
-            command=self._identificar, state="disabled")
-        self.btn_identificar.grid(row=0, column=1, padx=6, pady=10)
-
         self.btn_cancelar = ctk.CTkButton(barra, text="Cancel", width=90,
                                           height=30, font=tema.fonte(12),
                                           command=self._pedir_cancelamento,
                                           state="disabled")
-        self.btn_cancelar.grid(row=0, column=2, padx=6, pady=10)
+        self.btn_cancelar.grid(row=0, column=1, padx=6, pady=10)
 
         self.progresso = ctk.CTkProgressBar(barra, width=240, height=10)
         self.progresso.set(0)
-        self.progresso.grid(row=0, column=3, padx=12, pady=10)
+        self.progresso.grid(row=0, column=2, padx=12, pady=10)
 
         self.var_estado = ctk.StringVar(
             value="Pick a folder and click Scan Folder.")
         ctk.CTkLabel(barra, textvariable=self.var_estado, anchor="w",
                      font=tema.fonte(12), text_color=tema.TEXTO_FRACO).grid(
-            row=0, column=4, sticky="ew", padx=(0, 14))
+            row=0, column=3, sticky="ew", padx=(0, 14))
 
         fontes = ctk.CTkFrame(barra, fg_color="transparent", border_width=0)
-        fontes.grid(row=1, column=0, columnspan=5, sticky="w", padx=14, pady=(0, 8))
+        fontes.grid(row=1, column=0, columnspan=4, sticky="ew", padx=14, pady=(0, 8))
 
         ctk.CTkLabel(fontes, text="SEARCH IN", font=tema.titulo(),
                      text_color=tema.TEXTO_FRACO).pack(side="left", padx=(0, 10))
@@ -275,20 +263,39 @@ class App(ctk.CTk):
             # queres procurar, em vez de disparar sempre para as cinco.
             var = ctk.BooleanVar(value=False)
             self.vars_fontes[nome] = var
-            rotulo = f"{nome}*" if nome in identificador.FONTES_FRAGEIS else nome
-            ctk.CTkCheckBox(fontes, text=rotulo, variable=var, width=20,
+            ctk.CTkCheckBox(fontes, text=nome, variable=var, width=20,
                             checkbox_width=17, checkbox_height=17,
                             font=tema.fonte(12),
                             command=self._mudou_fontes).pack(side="left", padx=5)
 
-        ctk.CTkLabel(fontes, text="* unofficial route", font=tema.fonte(11),
-                     text_color=tema.TEXTO_FRACO).pack(side="left", padx=(6, 0))
+        # O "Search Tags" fica aqui, logo a seguir a ultima fonte: e o botao
+        # que faz o que esta escrito nesta linha, e assim escolhe-se onde
+        # procurar e carrega-se ali ao lado, sem saltar para outro sitio.
+        self.btn_identificar = ctk.CTkButton(
+            fontes, text="SEARCH TAGS", width=190, height=30,
+            font=tema.titulo(12),
+            fg_color=tema.DESTAQUE, hover_color=tema.DESTAQUE_ALTO,
+            text_color=tema.TEXTO_ESCURO,
+            # Comeca desligado (so se pode procurar depois de analisar), e o
+            # customtkinter apaga sozinho a letra dos botoes desligados. Sem
+            # isto, ficava com a letra mais fraca do que o Scan Folder.
+            text_color_disabled=tema.TEXTO_ESCURO,
+            command=self._identificar, state="disabled")
+        self.btn_identificar.pack(side="left", padx=(14, 0))
 
+        # O botao das chaves vai para a ponta direita da linha: so se mexe nele
+        # uma vez, no principio, e no meio das fontes so estava a atrapalhar.
+        # A moldura tem de ocupar a barra toda para haver "ponta direita" - por
+        # isso e que aqui a linha estica (sticky="ew").
         self.btn_chaves = ctk.CTkButton(fontes, text="Set up keys", width=145,
                                         height=26, font=tema.fonte(12),
                                         command=self._configurar_chaves)
-        self.btn_chaves.pack(side="left", padx=(12, 0))
+        self.btn_chaves.pack(side="right", padx=(12, 0))
 
+        # Este aviso fica: diz que falta a chave de uma fonte que esta marcada,
+        # e sem ele so se percebia o problema ao carregar em Search Tags. Ja o
+        # "nenhuma fonte escolhida" saiu daqui - passou a ser uma caixa de
+        # aviso quando se carrega em Search Tags (ver _identificar).
         self.var_aviso_fontes = ctk.StringVar(value="")
         ctk.CTkLabel(fontes, textvariable=self.var_aviso_fontes,
                      font=tema.fonte(11),
@@ -313,6 +320,27 @@ class App(ctk.CTk):
         ctk.CTkButton(topo, text="Select none", width=LARGURA_MARCAR, height=26,
                       font=tema.fonte(12),
                       command=lambda: self._marcar_todas(False)).pack(side="left", padx=6)
+
+        # No canto oposto, a procura dentro da pasta. Nao vai a Internet: so
+        # esconde da lista as musicas que nao tem aquelas letras no nome, no
+        # artista, no titulo, no album ou no ano. Campo vazio = ve-se tudo.
+        # Empacotados pela direita e por isso ao contrario: o botao primeiro,
+        # para ficar mesmo no canto, e a caixa a seguir, a esquerda dele.
+        self.var_procura = ctk.StringVar(value="")
+        ctk.CTkButton(topo, text="Search", width=90, height=26,
+                      font=tema.fonte(12),
+                      command=self._procurar_na_lista).pack(side="right")
+        caixa_procura = ctk.CTkEntry(
+            topo, textvariable=self.var_procura, width=240, height=26,
+            font=tema.fonte(12),
+            placeholder_text="filter by name, artist, title, album, year")
+        caixa_procura.pack(side="right", padx=6)
+        # Filtra enquanto se escreve, e o Enter faz o mesmo que o botao - para
+        # quem escreve e carrega logo em Enter sem olhar para o lado.
+        caixa_procura.bind("<KeyRelease>", lambda e: self._procurar_na_lista())
+        caixa_procura.bind("<Return>", lambda e: self._procurar_na_lista())
+        # Escape limpa e volta a mostrar a pasta toda.
+        caixa_procura.bind("<Escape>", lambda e: self._limpar_procura())
 
         self._estilo_tabela()
         # "tree headings" (em vez de so "headings") acende a coluna especial
@@ -500,10 +528,11 @@ class App(ctk.CTk):
         moldura.grid_columnconfigure(0, weight=1)
         moldura.grid_rowconfigure(1, weight=1)
 
-        # A linha de cima esta partida em duas, com as mesmas margens dos dois
-        # quadros de baixo: assim a caixa do nome acaba exatamente onde acaba o
-        # quadro dos campos, e os botoes ficam por cima do quadro das
-        # sugestoes, alinhados com ele de ponta a ponta.
+        # A linha de cima leva as mesmas margens do quadro dos campos que fica
+        # por baixo, e nada dela passa para o lado do artwork: comeca e acaba
+        # exatamente onde esse quadro comeca e acaba. Os botoes do nome estao
+        # na propria linha, a direita - e por isso que a caixa do nome ficou
+        # mais curta do que era.
         cabeca = ctk.CTkFrame(moldura, fg_color="transparent", border_width=0)
         cabeca.grid(row=0, column=0, sticky="ew", padx=(12, 6), pady=(8, 2))
         cabeca.grid_columnconfigure(1, weight=1)
@@ -539,26 +568,18 @@ class App(ctk.CTk):
                      font=tema.fonte(11),
                      text_color=tema.TEXTO_FRACO).pack(side="left")
 
-        # Os dois botoes do nome do ficheiro, do lado direito e com a largura
-        # do quadro das sugestoes que fica por baixo. O "Rename file" ocupa o
-        # que sobrar depois do "Undo" - fica mais estreito do que era, mas
-        # alinhado, que e o que se quer.
-        cabeca_dir = ctk.CTkFrame(moldura, fg_color="transparent", border_width=0)
-        cabeca_dir.grid(row=0, column=1, sticky="ew", padx=(6, 12), pady=(8, 2))
-        cabeca_dir.grid_columnconfigure(0, weight=1)
-
         # Depois de aceitar as sugestoes, este botao poe o nome do ficheiro
         # igual as tags: "Artista - Titulo".
-        ctk.CTkButton(cabeca_dir, text="Rename file", width=100,
+        ctk.CTkButton(cabeca, text="Rename file", width=100,
                       height=28, font=tema.fonte(12),
                       command=self._nome_pelas_tags).grid(
-            row=0, column=0, sticky="ew")
+            row=0, column=3, padx=(12, 0))
 
         # Desfaz o botao do lado, repondo o nome que la estava antes.
         self.botao_undo_nome = ctk.CTkButton(
-            cabeca_dir, text="Undo", width=60, height=28, state="disabled",
+            cabeca, text="Undo", width=60, height=28, state="disabled",
             font=tema.fonte(12), command=self._desfazer_nome)
-        self.botao_undo_nome.grid(row=0, column=1, padx=(6, 0))
+        self.botao_undo_nome.grid(row=0, column=4, padx=(6, 0))
 
         # Quadro normal, e nao um com barra de deslocamento: os campos cabem
         # todos, e a barra ao lado dos botoes so estava a ocupar espaco.
@@ -566,46 +587,44 @@ class App(ctk.CTk):
         # Folga em cima para a primeira linha nao ficar colada ao campo do
         # nome do ficheiro, que esta mesmo por cima.
         campos.grid(row=1, column=0, sticky="nsew", padx=(12, 6), pady=(8, 10))
+        # As colunas que esticam sao as duas que levam texto: a caixa de
+        # edicao (1) e a sugestao (5). Pelo meio delas ficam os tres botoes de
+        # cada campo, que sao sempre do mesmo tamanho.
         campos.grid_columnconfigure(1, weight=1)
-        campos.grid_columnconfigure(2, weight=1)
+        campos.grid_columnconfigure(5, weight=1)
+
+        # De um lado o que esta gravado no ficheiro, do outro o que veio da
+        # Internet - cada coluna com o seu nome por cima, para se perceber de
+        # imediato qual e qual.
+        ctk.CTkLabel(campos, text="ORIGINAL FILE TAGS", font=tema.titulo(),
+                     text_color=tema.TEXTO_FRACO).grid(
+            row=0, column=1, sticky="w", padx=6, pady=(8, 2))
 
         self.var_cabecalho_sugestao = ctk.StringVar(value="SUGGESTED FROM THE INTERNET")
         ctk.CTkLabel(campos, textvariable=self.var_cabecalho_sugestao,
                      font=tema.titulo(),
                      text_color=tema.TEXTO_FRACO).grid(
-            row=0, column=2, sticky="w", padx=6, pady=(8, 2))
+            row=0, column=5, sticky="w", padx=(6, 8), pady=(8, 2))
 
         # Por cima dos botoes de cada campo, os dois que fazem o mesmo mas para
-        # todos de uma vez. Vao dentro de uma moldura que ocupa as tres colunas
-        # de baixo (usar, blank, undo), para os dois ficarem com a largura das
-        # tres e com os mesmos espacos pelo meio.
-        # A largura de cada um e metade da que os tres de baixo ocupam, tirando
-        # o espaco do meio - assim os dois de cima comecam e acabam exatamente
-        # onde os tres comecam e acabam. Sem esta conta, a moldura pedia a
-        # largura que quisesse e era ela a mandar nas colunas de baixo,
-        # afastando os botoes uns dos outros.
-        largura_tres = 52 + 4 + 58 + 4 + 52
-        metade = (largura_tres - 4) // 2
-
-        acoes = ctk.CTkFrame(campos, fg_color="transparent")
+        # todos de uma vez. Cada um fica exatamente na coluna do seu: o
+        # "use all" por cima dos "use", o "undo" por cima dos "undo". Assim
+        # ve-se pela vertical o que cada um faz, sem ler.
         # O espaco por baixo e o mesmo que ha entre as linhas de botoes de
-        # cada campo (2 em baixo + 2 em cima da linha seguinte).
-        # A folga de cima e para os botoes nao ficarem encostados ao rebordo do
-        # quadro. A etiqueta do lado leva a mesma, para a linha nao ficar
-        # desalinhada e o espaco por baixo continuar igual ao das outras.
-        acoes.grid(row=0, column=3, columnspan=3, sticky="ew",
-                   padx=(2, 8), pady=(8, 2))
-        acoes.grid_columnconfigure((0, 1), weight=1, uniform="acoes")
-
+        # cada campo (2 em baixo + 2 em cima da linha seguinte). A folga de
+        # cima e para os botoes nao ficarem encostados ao rebordo do quadro; as
+        # etiquetas do lado levam a mesma, para a linha nao ficar desalinhada.
         self.botao_usar_tudo = ctk.CTkButton(
-            acoes, text="use all", width=metade, height=26, font=tema.fonte(11),
+            campos, text="use all", width=52, height=26, font=tema.fonte(11),
             command=self._usar_tudo)
-        self.botao_usar_tudo.grid(row=0, column=0, sticky="ew", padx=(0, 2))
+        self.botao_usar_tudo.grid(row=0, column=2, sticky="ew",
+                                  padx=(2, 2), pady=(8, 2))
 
         self.botao_undo_tudo = ctk.CTkButton(
-            acoes, text="undo", width=metade, height=26, font=tema.fonte(11),
+            campos, text="undo all", width=52, height=26, font=tema.fonte(11),
             state="disabled", command=self._desfazer_tudo)
-        self.botao_undo_tudo.grid(row=0, column=1, sticky="ew", padx=(2, 0))
+        self.botao_undo_tudo.grid(row=0, column=4, sticky="ew",
+                                  padx=(2, 2), pady=(8, 2))
 
         for i, campo in enumerate(CAMPOS_EDITAVEIS, start=1):
             ctk.CTkLabel(campos, text=ETIQUETAS[campo].upper(), anchor="e", width=120,
@@ -621,15 +640,13 @@ class App(ctk.CTk):
             entrada.bind("<FocusIn>", lambda e, c=campo: self._guardar_anterior(c))
             self.entradas[campo] = entrada
 
-            sugestao = ctk.CTkLabel(campos, text="", anchor="w", font=tema.fonte(12),
-                                    text_color=tema.SUGESTAO)
-            sugestao.grid(row=i, column=2, sticky="ew", padx=6, pady=2)
-            self.sugestoes_txt[campo] = sugestao
-
+            # Os tres botoes ficam todos juntos entre a caixa e a sugestao: e
+            # ali que se mexe no campo, e o "use" aponta mesmo do que veio da
+            # Internet para dentro da caixa.
             ctk.CTkButton(campos, text="use", width=52, height=26,
                           font=tema.fonte(11),
                           command=lambda c=campo: self._usar_sugestao(c)).grid(
-                row=i, column=3, padx=(2, 2), pady=2)
+                row=i, column=2, padx=(2, 2), pady=2)
 
             # O artista e o titulo nao levam "blank": sao os dois campos que
             # nunca interessa deixar vazios, e e deles que sai o nome do
@@ -639,13 +656,18 @@ class App(ctk.CTk):
                               font=tema.fonte(11),
                               hover_color=tema.VERMELHO,
                               command=lambda c=campo: self._apagar_campo(c)).grid(
-                    row=i, column=4, padx=(2, 2), pady=2)
+                    row=i, column=3, padx=(2, 2), pady=2)
 
             botao = ctk.CTkButton(campos, text="undo", width=52, height=26,
                                   font=tema.fonte(11), state="disabled",
                                   command=lambda c=campo: self._desfazer_campo(c))
-            botao.grid(row=i, column=5, padx=(2, 8), pady=2)
+            botao.grid(row=i, column=4, padx=(2, 2), pady=2)
             self.botoes_undo[campo] = botao
+
+            sugestao = ctk.CTkLabel(campos, text="", anchor="w", font=tema.fonte(12),
+                                    text_color=tema.SUGESTAO)
+            sugestao.grid(row=i, column=5, sticky="ew", padx=(6, 8), pady=2)
+            self.sugestoes_txt[campo] = sugestao
 
         lateral = ctk.CTkFrame(moldura, width=350)
         lateral.grid(row=1, column=1, sticky="nsew", padx=(6, 12), pady=(8, 10))
@@ -771,13 +793,13 @@ class App(ctk.CTk):
     def _mudou_fontes(self):
         por_configurar = [nome for nome, var in self.vars_fontes.items()
                           if var.get() and not identificador.FONTES[nome].disponivel()]
-        if por_configurar:
-            self.var_aviso_fontes.set(
-                f"{', '.join(por_configurar)}: keys not set up yet")
-        elif not self._fontes_escolhidas():
-            self.var_aviso_fontes.set("pick at least one source")
-        else:
-            self.var_aviso_fontes.set("")
+        # Nao escolher fonte nenhuma nao e um erro enquanto se esta a escolher:
+        # so passa a ser quando se carrega em Search Tags, e ai o aviso aparece
+        # numa caixa. Aqui so se avisa do que nao se ve de outra maneira - uma
+        # fonte marcada a que faltam as chaves.
+        self.var_aviso_fontes.set(
+            f"{', '.join(por_configurar)}: keys not set up yet"
+            if por_configurar else "")
         por_ligar = [n for n in ("Spotify", "Discogs")
                      if not identificador.FONTES[n].disponivel()]
         self.btn_chaves.configure(
@@ -1145,10 +1167,52 @@ class App(ctk.CTk):
 
     # ----------------------------------------------------------------- tabela
 
+    # ------------------------------------------------- procura dentro da pasta
+
+    @staticmethod
+    def _texto_de_procura(ficha) -> str:
+        """Tudo aquilo por onde se pode procurar uma musica, num so texto."""
+        v = ficha["valores"]
+        return " ".join(str(x) for x in (
+            ficha.get("nome_novo") or ficha["ficheiro"],
+            v.get("artista", ""), v.get("titulo", ""),
+            v.get("album", ""), v.get("ano", ""))).lower()
+
+    def _fichas_a_mostrar(self) -> list:
+        """As musicas que passam no filtro da caixa de procura.
+
+        Sem filtro sao todas. As que ficam de fora **nao sao apagadas**: so
+        deixam de se ver na lista, e voltam assim que a caixa fica vazia.
+        """
+        procura = getattr(self, "var_procura", None)
+        palavras = procura.get().strip().lower().split() if procura else []
+        if not palavras:
+            return list(self.fichas)
+        # Varias palavras = tem de ter todas, em qualquer ordem: assim
+        # "daft harder" encontra a musica sem se saber de cor o nome inteiro.
+        return [f for f in self.fichas
+                if all(p in self._texto_de_procura(f) for p in palavras)]
+
+    def _procurar_na_lista(self):
+        self._preencher_tabela()
+
+    def _limpar_procura(self):
+        self.var_procura.set("")
+        self._preencher_tabela()
+
     def _preencher_tabela(self):
         self.tabela.delete(*self.tabela.get_children())
         self.por_id.clear()
+        visiveis = self._fichas_a_mostrar()
+        # Comparadas por identidade e nao por conteudo: duas musicas podem ter
+        # exatamente as mesmas tags e nao sao a mesma linha.
+        a_ver = {id(f) for f in visiveis}
+        # Quem fica de fora perde o "iid": aquela linha ja nao existe na
+        # tabela, e sem isto o _atualizar_linha ia mexer numa linha apagada.
         for ficha in self.fichas:
+            if id(ficha) not in a_ver:
+                ficha.pop("iid", None)
+        for ficha in visiveis:
             iid = self.tabela.insert("", "end", values=self._valores_linha(ficha),
                                      image=self._icone_da_ficha(ficha))
             ficha["iid"] = iid
@@ -1282,6 +1346,11 @@ class App(ctk.CTk):
         fracas = sum(1 for f in self.fichas if _taxa_baixa(f))
         resumo = (f"{len(self.fichas)} tracks | {tamanho_texto(tamanho)} | "
                   f"{marcadas} selected | {alteradas} to save")
+        # Com a procura ligada ha musicas escondidas: diz-se quantas se veem,
+        # para nao parecer que desapareceram da pasta.
+        vistas = len(self.tabela.get_children())
+        if vistas != len(self.fichas):
+            resumo += f" | showing {vistas}"
         if fracas:
             resumo += f" | {fracas} below {MINIMO_KBPS} kbps"
         self.var_resumo.set(resumo)
@@ -2074,8 +2143,9 @@ class App(ctk.CTk):
             "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
             f"{identidade.LICENCA_URL}\n\n"
             "The full licence is in the LICENSE file, and the libraries used\n"
-            "are listed in THIRD-PARTY.md. You have the right to the source\n"
-            "code of this program."
+            "are listed in THIRD-PARTY.md.\n\n"
+            "You have the right to the source code of this program: it is in\n"
+            "the 'codigo-fonte' folder, installed next to the program itself."
         )
         ctk.CTkLabel(janela, text=texto, justify="left", font=tema.fonte(11),
                      text_color=tema.TEXTO_FRACO).pack(padx=20, pady=12)

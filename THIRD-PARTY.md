@@ -15,6 +15,16 @@ pacotes, não copiadas de memória.
 | [darkdetect](http://github.com/albertosottile/darkdetect) | 0.8.0 | BSD 3-Clause | Usada pelo customtkinter |
 | [python-vlc](https://wiki.videolan.org/PythonBinding) | 3.0.21203 | LGPL-2.1-or-later | Tocar as músicas e calcular as ondas |
 
+## Onde está o código-fonte
+
+O código do próprio TaGo vai **dentro do instalador**, na pasta
+`codigo-fonte\`, ao lado do programa. É o que a GPL exige de quem distribui:
+quem recebeu o programa tem direito ao código daquela versão.
+
+O código das bibliotecas acima não é redistribuído aqui — obtém-se de cada
+projeto, nas versões indicadas na tabela. O `mutagen`, por ser GPL, é o que
+mais importa: <https://github.com/quodlibet/mutagen>.
+
 ## O mutagen é a razão de isto ser GPL
 
 O `mutagen` é **GPL-2.0-or-later**. Um programa que o inclua e seja

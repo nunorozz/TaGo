@@ -32,6 +32,11 @@ Faz-se uma PASTA e nao um unico ficheiro .exe de proposito: em ficheiro unico
 o Windows tem de desempacotar tudo de cada vez que se abre a app, e o arranque
 passa de instantaneo a varios segundos.
 
+O codigo-fonte vai DENTRO do pacote, em `codigo-fonte\\`. Nao e opcional: a
+GPL da ao mutagen - e por tabela a este programa - a regra de que quem recebe
+o programa tem direito ao codigo daquela versao. Como o TaGo se entrega em
+mao, o codigo tem de viajar com ele.
+
 Duas coisas NAO vao la para dentro, e e importante que assim seja:
 
 - As chaves das fontes de pesquisa (`credenciais.json`) e as definicoes. Vivem
@@ -66,9 +71,67 @@ ESCONDIDOS = [
 ]
 
 
+# Ficheiros que NUNCA podem entrar no pacote, aconteca o que acontecer. Sao
+# pessoais de quem usa a app: as chaves do Spotify e do Discogs, as definicoes
+# e as caches. A verificacao no fim do copiar_fonte() confirma que nao foram.
+SEGREDOS = ("credenciais.json", "definicoes.json", "chave_acoustid.txt",
+            "cache_procuras.json", "cache_ondas.json")
+
+# O codigo que vai dentro do instalador. Lista escrita a mao, e nao um "*.py":
+# assim so entra o que aqui estiver, e um ficheiro novo com chaves largado na
+# pasta nao passa a boleia.
+FONTES = [
+    "app.py", "armazenamento.py", "criar_logo.py", "dados.py", "empacotar.py",
+    "escritor.py", "exportar.py", "fonte_beatport.py", "fonte_discogs.py",
+    "fonte_musicbrainz.py", "fonte_spotify.py", "fonte_traxsource.py",
+    "identidade.py", "identificador.py", "leitor.py", "metadata.py",
+    "ondas.py", "relatorios.py", "scanner.py", "tema.py",
+    "Abrir App.bat", "Criar Instalador.bat",
+    "LICENSE", "THIRD-PARTY.md", "README.md", ".gitignore",
+]
+PASTAS_FONTE = ["recursos", "instalador"]
+
+
 def apagar(pasta: Path):
     if pasta.exists():
         shutil.rmtree(pasta, ignore_errors=True)
+
+
+def copiar_fonte(destino: Path):
+    """Poe o codigo-fonte dentro do pacote, em `codigo-fonte\\`.
+
+    A GPL obriga: quem recebe o programa tem direito ao codigo daquela versao.
+    Como o TaGo se entrega em mao (um .exe numa pen, por email), o sitio certo
+    para o codigo e dentro do proprio instalador - assim vai sempre junto e
+    nunca ha a duvida de saber se foi entregue.
+    """
+    pasta = destino / "codigo-fonte"
+    apagar(pasta)
+    pasta.mkdir(parents=True)
+
+    for nome in FONTES:
+        origem = PASTA / nome
+        if origem.exists():
+            shutil.copy2(origem, pasta / nome)
+        else:
+            print(f"  aviso: {nome} nao existe e ficou de fora")
+
+    for nome in PASTAS_FONTE:
+        origem = PASTA / nome
+        if origem.exists():
+            # __pycache__ sao ficheiros gerados, nao sao codigo.
+            shutil.copytree(origem, pasta / nome,
+                            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+
+    # Cinto e suspensorios: confirma-se que nada de pessoal foi parar la dentro.
+    # Se um dia a lista de cima crescer por engano, isto rebenta o empacotamento
+    # em vez de deixar sair um instalador com as chaves de alguem.
+    intrusos = [f for f in pasta.rglob("*") if f.name in SEGREDOS]
+    if intrusos:
+        raise SystemExit(f"ABORTADO: dados pessoais no pacote: {intrusos}")
+
+    quantos = sum(1 for f in pasta.rglob("*") if f.is_file())
+    print(f"Codigo-fonte incluido: {quantos} ficheiros em codigo-fonte\\")
 
 
 def empacotar() -> Path:
@@ -102,6 +165,8 @@ def empacotar() -> Path:
         origem = PASTA / ficheiro
         if origem.exists():
             shutil.copy2(origem, destino / ficheiro)
+
+    copiar_fonte(destino)
 
     instalador = PASTA / "instalador" / "Instalar TaGo.bat"
     if instalador.exists():
