@@ -20,7 +20,7 @@ Sao dois passos:
 
 1. O **PyInstaller** faz o programa. Fica em `dist\\TaGo\\`: uma pasta com o
    `TaGo.exe` la dentro e tudo o que ele precisa.
-2. O **Inno Setup** embrulha essa pasta num unico `Output\\TaGo-Setup-1.0.exe`
+2. O **Inno Setup** embrulha essa pasta num unico `Output\\TaGo-Setup-2.0.exe`
    - o instalador a serio, com assistente, licenca, atalhos, e entrada em
    "Aplicacoes e funcionalidades" do Windows para desinstalar. A receita esta
    em `instalador\\TaGo.iss`.
@@ -83,7 +83,7 @@ SEGREDOS = ("credenciais.json", "definicoes.json", "chave_acoustid.txt",
 FONTES = [
     "app.py", "armazenamento.py", "criar_logo.py", "dados.py", "empacotar.py",
     "escritor.py", "exportar.py", "fonte_beatport.py", "fonte_discogs.py",
-    "fonte_musicbrainz.py", "fonte_spotify.py", "fonte_traxsource.py",
+    "fonte_musicbrainz.py", "fonte_spotify.py",
     "identidade.py", "identificador.py", "leitor.py", "metadata.py",
     "ondas.py", "relatorios.py", "scanner.py", "tema.py",
     "Abrir App.bat", "Criar Instalador.bat",

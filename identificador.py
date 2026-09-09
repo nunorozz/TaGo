@@ -35,7 +35,6 @@ import fonte_beatport
 import fonte_discogs
 import fonte_musicbrainz
 import fonte_spotify
-import fonte_traxsource
 
 import dados
 
@@ -49,13 +48,12 @@ CONFIANCA_DUVIDOSA = 70
 FONTES = {
     fonte_spotify.NOME: fonte_spotify,
     fonte_beatport.NOME: fonte_beatport,
-    fonte_traxsource.NOME: fonte_traxsource,
     fonte_discogs.NOME: fonte_discogs,
     fonte_musicbrainz.NOME: fonte_musicbrainz,
 }
 
 # Fontes que dependem de vias nao oficiais e podem deixar de funcionar.
-FONTES_FRAGEIS = {fonte_beatport.NOME, fonte_traxsource.NOME}
+FONTES_FRAGEIS = {fonte_beatport.NOME}
 
 _cache: dict | None = None
 

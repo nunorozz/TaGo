@@ -9,7 +9,7 @@ pacotes, não copiadas de memória.
 |---|---|---|---|
 | [mutagen](https://mutagen.readthedocs.io) | 1.48.1 | **GPL-2.0-or-later** | Ler e gravar as tags |
 | [musicbrainzngs](https://python-musicbrainzngs.readthedocs.io/) | 0.7.1 | BSD 2-Clause | Pesquisa na MusicBrainz |
-| [requests](https://requests.readthedocs.io) | 2.34.2 | Apache-2.0 | Pedidos ao Spotify, Discogs, Beatport e Traxsource |
+| [requests](https://requests.readthedocs.io) | 2.34.2 | Apache-2.0 | Pedidos ao Spotify, Discogs e Beatport |
 | [customtkinter](https://customtkinter.tomschimansky.com) | 6.0.0 | MIT | A interface |
 | [Pillow](https://pillow.readthedocs.io) | 12.3.0 | MIT-CMU | Capas, formas de onda e o logo |
 | [darkdetect](http://github.com/albertosottile/darkdetect) | 0.8.0 | BSD 3-Clause | Usada pelo customtkinter |

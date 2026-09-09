@@ -18,7 +18,7 @@
 
 #define Nome        "TaGo"
 #ifndef Versao
-  #define Versao    "1.0"
+  #define Versao    "2.0"
 #endif
 #define Autor       "Nuno Rozz"
 #define Descricao   "Music Tag Editor"

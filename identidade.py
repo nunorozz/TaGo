@@ -20,14 +20,11 @@ Num so sitio, porque tem de ser igual em todo o lado. A MusicBrainz **exige**
 um User-Agent com nome, versao e um contacto verdadeiro - com um contacto
 inventado, o mais provavel e serem os pedidos bloqueados. O Discogs pede o
 mesmo, e o Beatport agradece.
-
-O Traxsource e a excecao: so responde a um User-Agent de navegador, por isso
-esse fica como esta (ver fonte_traxsource.py).
 """
 
 NOME = "TaGo"
 DESCRICAO = "Music Tag Editor"
-VERSAO = "1.0"
+VERSAO = "2.0"
 
 # Quem detem os direitos de autor e sob que licenca a app e distribuida. A
 # GPL-3 pede que um programa interativo mostre isto a quem o usa - e o que a

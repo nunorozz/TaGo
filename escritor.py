@@ -13,17 +13,18 @@
 #
 # You should have received a copy of the GNU General Public License along
 # with this program. If not, see <https://www.gnu.org/licenses/>.
-"""Escrita de tags no proprio ficheiro de audio, com rede de seguranca.
+"""Escrita de tags no proprio ficheiro de audio.
 
 Regras que este modulo garante:
 
-1. Antes da primeira alteracao a um ficheiro, guarda-se uma copia integral do
-   original em _backup_tags\\. Essa copia nunca e substituida, para que
-   "Reverter" reponha sempre o estado original.
-2. A escrita e atomica: as tags sao aplicadas a uma copia temporaria e so no
+1. A escrita e atomica: as tags sao aplicadas a uma copia temporaria e so no
    fim essa copia toma o lugar do original (os.replace). Se falhar a meio, o
    ficheiro do utilizador fica intacto.
-3. Tudo o que e alterado fica registado em historico.log.
+2. Tudo o que e alterado fica registado em historico.log.
+
+O que este modulo ja nao faz: guardar copias dos ficheiros de audio. O que se
+escreve nas tags e definitivo. Em _backup_tags\\ fica apenas o historico.log,
+a dizer o que foi mudado.
 
 Nota de implementacao: os campos de texto sao escritos pela interface "easy"
 do mutagen, que ja normaliza os formatos entre si. Comentario e capa nao sao
@@ -62,26 +63,8 @@ class ErroEscrita(Exception):
 # --------------------------------------------------------------- seguranca
 
 def pasta_backup(caminho_musica) -> Path:
+    """Pasta onde fica o historico.log desta pasta de musicas."""
     return Path(caminho_musica).parent / PASTA_BACKUP
-
-
-def caminho_backup(caminho_musica) -> Path:
-    p = Path(caminho_musica)
-    return pasta_backup(p) / p.name
-
-
-def tem_backup(caminho_musica) -> bool:
-    return caminho_backup(caminho_musica).exists()
-
-
-def criar_backup(caminho_musica) -> Path:
-    """Guarda o original. Se ja existir copia, mantem a antiga (a verdadeira)."""
-    destino = caminho_backup(caminho_musica)
-    if destino.exists():
-        return destino
-    destino.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(caminho_musica, destino)
-    return destino
 
 
 def ficheiro_bloqueado(caminho) -> bool:
@@ -92,17 +75,6 @@ def ficheiro_bloqueado(caminho) -> bool:
     except OSError:
         return True
 
-
-def reverter(caminho_musica) -> bool:
-    """Repoe o ficheiro original a partir da copia de seguranca."""
-    origem = caminho_backup(caminho_musica)
-    if not origem.exists():
-        return False
-    if ficheiro_bloqueado(caminho_musica):
-        raise ErroEscrita("the file is in use by another program")
-    shutil.copy2(origem, caminho_musica)
-    _registar(caminho_musica, "REVERTIDO", "", "")
-    return True
 
 
 CARACTERES_PROIBIDOS = '\\/:*?"<>|'
@@ -154,7 +126,7 @@ def validar_nome(novo_nome: str, caminho_atual) -> str:
 
 
 def renomear(caminho_musica, novo_nome: str) -> Path:
-    """Muda o nome do ficheiro no disco, levando a copia de seguranca atras."""
+    """Muda o nome do ficheiro no disco."""
     atual = Path(caminho_musica)
     novo_nome = validar_nome(novo_nome, atual)
     destino = atual.with_name(novo_nome)
@@ -166,19 +138,10 @@ def renomear(caminho_musica, novo_nome: str) -> Path:
     if ficheiro_bloqueado(atual):
         raise ErroEscrita("the file is in use by another program")
 
-    # A copia de seguranca e guardada com o nome do ficheiro: se o nome muda,
-    # ela tem de mudar tambem, senao o Reverter deixa de a encontrar.
-    backup_antigo = caminho_backup(atual)
     try:
         atual.rename(destino)
     except OSError as e:
         raise ErroEscrita(f"could not rename: {e}") from e
-
-    if backup_antigo.exists():
-        try:
-            backup_antigo.rename(caminho_backup(destino))
-        except OSError:
-            pass          # o ficheiro ja foi renomeado; nao se desfaz por isto
 
     _registar(destino, "nome do ficheiro", atual.name, destino.name)
     return destino
@@ -236,8 +199,6 @@ def gravar(caminho_musica, valores: dict, capa_nova: bytes | None = None,
     ]
     if not alteracoes and capa_nova is None and not remover_capa:
         return []
-
-    criar_backup(caminho)
 
     temporario = caminho.with_name(caminho.name + ".tags-tmp")
     try:

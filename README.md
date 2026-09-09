@@ -16,7 +16,7 @@ código, com o Python instalado.
 
 ### Instalar a app
 
-Duplo-clique em **`Output\TaGo-Setup-1.0.exe`** — o instalador normal do
+Duplo-clique em **`Output\TaGo-Setup-2.0.exe`** — o instalador normal do
 Windows, com assistente em português. Funciona em computadores **sem Python
 instalado**, e é este único ficheiro que se dá a quem quiser a app.
 
@@ -30,7 +30,7 @@ Duplo-clique em **`Criar Instalador.bat`**. Demora alguns minutos e só é
 preciso quando o código muda. Faz duas coisas:
 
 1. Constrói o programa para `dist\TaGo\` (com o **PyInstaller**).
-2. Embrulha-o em `Output\TaGo-Setup-1.0.exe` (com o **Inno Setup**).
+2. Embrulha-o em `Output\TaGo-Setup-2.0.exe` (com o **Inno Setup**).
 
 Se o Inno Setup não estiver instalado, o ficheiro trata de o instalar. Se
 mesmo assim faltar, fica na mesma a pasta `dist\` com um
@@ -103,30 +103,32 @@ queres tratar. A app lê logo os ficheiros.
 
 ### 2. Identificar na Internet (opcional)
 
-Escolhe em **Procurar em:** quais as fontes a usar, e carrega em
-**2. Identificar na Internet**. A app procura cada música e sugere o título,
-artista, álbum, ano e género corretos.
+Carrega em **2. Identificar na Internet**. A app procura cada música e sugere
+o título, artista, álbum, ano e género corretos.
 
-#### As cinco fontes
+#### As quatro fontes
 
-Aparecem por esta ordem, e **começam todas por marcar**: escolhes de propósito
-onde queres procurar, em vez de disparar sempre para as cinco. Enquanto não
-escolheres nenhuma, a barra avisa.
+Não há nada a escolher: a procura corre **sempre nas quatro fontes**, todas as
+que tenham as chaves postas. Se faltarem chaves a alguma, a barra diz quais, e
+a procura corre nas restantes.
 
 | Fonte | Precisa de quê | Forte em |
 |---|---|---|
 | **Beatport\*** | nada | eletrónica em geral: editora, BPM, tonalidade, género exato |
-| **Traxsource\*** | nada | house, deep, soulful e afro house — onde o Beatport às vezes falha |
 | **Spotify** | duas chaves gratuitas (ver abaixo) | catálogo enorme, capas em alta qualidade |
 | **Discogs** | um token gratuito (ver abaixo) | edições físicas: editora, n.º de catálogo, país, ano da edição |
 | **MusicBrainz** | nada | música em geral, sobretudo mais antiga e de nicho |
 
 \* via não oficial — ver o aviso mais abaixo.
 
-Podes ligar e desligar cada uma. Os resultados aparecem todos na mesma lista,
-com a fonte identificada (`[Spo]`, `[Bea]`, `[Tra]`, `[Dis]`, `[Mus]`) e uma
-percentagem de confiança calculada da mesma maneira para todas — por isso são
-comparáveis entre si.
+> O **Traxsource** era a quinta fonte e foi retirado: o site passou a estar
+> atrás de um teste da Cloudflare, que responde a qualquer pedido da app com
+> um erro. Não há API oficial, e contornar esse teste não é caminho.
+
+As respostas das quatro fontes são pontuadas da mesma maneira, por isso são
+comparáveis entre si. Do que vem, fica a hipótese com **mais confiança** — é
+essa que aparece na coluna das sugestões, com o nome da fonte por cima
+(*SUGERIDO POR ...*).
 
 Quando escolhes uma sugestão do Beatport, o cabeçalho mostra os extras que só
 essa fonte tem, por exemplo *"SUGERIDO POR BEATPORT (R&S Records · 124 BPM ·
@@ -151,18 +153,18 @@ A app testa as chaves na hora e só as guarda se funcionarem. Ficam apenas
 neste computador, em `%APPDATA%\TaGo\credenciais.json`. **Não dão acesso às
 tuas contas** — servem só para pesquisar os catálogos públicos.
 
-#### Sobre o Beatport e o Traxsource — lê isto
+#### Sobre o Beatport — lê isto
 
-Nenhum dos dois **tem API pública**. A app obtém os dados pela mesma via que
-os próprios sites usam: lê a página pública e usa a mesma sessão que o site
-usa.
+O Beatport **não tem API pública**. A app obtém os dados pela mesma via que o
+próprio site usa: lê a página pública e usa a mesma sessão que o site usa.
 
 Duas consequências que deves conhecer:
 
-- **Podem deixar de funcionar sem aviso**, sempre que mudarem o site. Quando
-  isso acontecer, a app continua a trabalhar com as outras fontes; a que
-  falhou limita-se a não devolver resultados. Por isso aparecem marcadas com
-  um asterisco.
+- **Pode deixar de funcionar sem aviso**, sempre que mudarem o site. Foi o que
+  aconteceu ao Traxsource, que era a quinta fonte e teve de sair. Quando isso
+  acontece, a app continua a trabalhar com as outras fontes; a que falhou
+  limita-se a não devolver resultados. Por isso aparece marcada com um
+  asterisco.
 - É uma utilização pessoal e de baixo volume: há uma pausa de 1 segundo entre
   pedidos, para não sobrecarregar o serviço.
 
@@ -231,8 +233,8 @@ cima passa a dizer `a remover`, fica com contorno vermelho, e o painel avisa.
   desaparece mesmo no **Gravar Metadata**.
 - Para desistir, clica na caixa de cima (`atual`) e a capa fica como estava.
 - A música conta como "por gravar" enquanto estiver marcada.
-- A cópia de segurança é feita na mesma, por isso o original com capa fica
-  guardado em `_backup_tags`.
+- Depois de gravares, a capa antiga desaparece de vez: a app não guarda cópia
+  do ficheiro original.
 
 Durante a identificação, a app já escolhe automaticamente a capa da melhor
 hipótese, mas **só para músicas que ainda não têm capa** — nunca substitui
@@ -277,8 +279,6 @@ deixa de estar na lista das que vão ser renomeadas.
   `.flac` não converteria nada, só estragaria o ficheiro).
 - Nomes com `\ / : * ? " < > |` são recusados — o Windows não os permite.
 - Se já existir um ficheiro com esse nome na pasta, a app avisa e não mexe.
-- A cópia de segurança acompanha a mudança, por isso continua a haver original
-  guardado depois de renomeares.
 
 ### Campos dispensados
 
@@ -291,8 +291,8 @@ a lista quase toda e não te dizia nada. A marca fica reservada ao que *tu*
 alteraste e ainda não gravaste. O que está por limpar conta na conta de "por
 gravar", no canto inferior direito.
 
-Se um dia quiseres voltar atrás, o original está em `_backup_tags` (ver
-*Rede de segurança*).
+Não há como voltar atrás depois de gravar: a app não guarda cópia do
+ficheiro original (ver *Rede de segurança*).
 
 ### Ouvir uma música
 
@@ -338,17 +338,17 @@ A conta do que falta gravar está sempre no canto inferior direito.
 
 ## Rede de segurança
 
-Como esta app altera mesmo os teus ficheiros, há três proteções:
+Como esta app altera mesmo os teus ficheiros, há duas proteções:
 
-1. **Cópia de segurança automática.** Antes de mexer num ficheiro pela
-   primeira vez, é guardada uma cópia integral do original na subpasta
-   `_backup_tags`. Se precisares do original, está lá — copia-o de volta para
-   a pasta da música. (A app já não tem botão para o fazer por ti.)
-2. **Nada se perde a meio.** As tags são escritas numa cópia temporária e só
+1. **Nada se perde a meio.** As tags são escritas numa cópia temporária e só
    no fim é que essa cópia toma o lugar do original. Se faltar a luz a meio,
    o teu ficheiro fica intacto.
-3. **Registo de tudo.** O ficheiro `_backup_tags\historico.log` guarda o que
+2. **Registo de tudo.** O ficheiro `_backup_tags\historico.log` guarda o que
    foi alterado, quando, e qual era o valor anterior.
+
+O que **não** há é cópia de segurança: a app não guarda cópias dos teus
+ficheiros de áudio, e o que gravas nas tags é definitivo. Se quiseres uma
+rede, faz tu uma cópia da pasta antes de gravar.
 
 Se um ficheiro estiver a ser usado por outro programa (por exemplo, a tocar
 no leitor de música), a app avisa e salta esse ficheiro em vez de falhar.
@@ -400,9 +400,9 @@ como ao gravar, por isso o ficheiro também fica só com `2011`.
 
 ### Sobre o BPM e a Key
 
-Preenchem-se à mão ou vêm das sugestões. **Só o Beatport e o Traxsource os
-fornecem** — o Spotify, o Discogs e a MusicBrainz não guardam esta
-informação, por isso deixam os dois campos vazios.
+Preenchem-se à mão ou vêm das sugestões. **Só o Beatport os fornece** — o
+Spotify, o Discogs e a MusicBrainz não guardam esta informação, por isso
+deixam os dois campos vazios.
 
 São gravados nas tags que os leitores e os programas de DJ esperam:
 
@@ -441,7 +441,7 @@ portugueses, capas de álbum, BPM e Key.
 - As formas de onda ficam em cache em `cache_ondas.json`. Cada música só é
   descodificada uma vez (menos de um segundo, feito em segundo plano pelo
   VLC). Se o ficheiro for alterado, a onda é recalculada sozinha.
-- As respostas das três fontes ficam em cache em `cache_procuras.json`, para
+- As respostas das fontes ficam em cache em `cache_procuras.json`, para
   não repetir procuras. MusicBrainz e Beatport limitam a 1 pedido por segundo
   — por isso identificar muitas músicas demora um pouco.
 - A confiança **não** usa a pontuação interna de cada serviço (não são
@@ -492,13 +492,12 @@ programas com interface.
 | `recursos/` | O logo (`logo.png`, `logo_barra.png`, `tago.ico`) e o SVG original |
 | `identidade.py` | Como a app se identifica perante os serviços |
 | `metadata.py` | Ler tags e traduzir entre formatos |
-| `escritor.py` | Gravar tags, cópias de segurança, reverter |
+| `escritor.py` | Gravar tags e renomear ficheiros |
 | `scanner.py` | Percorrer a pasta |
 | `identificador.py` | Juntar e pontuar os resultados das fontes |
 | `fonte_spotify.py` | Pesquisa no Spotify (API oficial) |
 | `fonte_discogs.py` | Pesquisa no Discogs (API oficial) |
 | `fonte_beatport.py` | Pesquisa no Beatport (via não oficial) |
-| `fonte_traxsource.py` | Pesquisa no Traxsource (via não oficial) |
 | `fonte_musicbrainz.py` | Pesquisa na MusicBrainz |
 | `relatorios.py` | Tags em falta, duplicados, estatísticas |
 | `exportar.py` | Exportação para CSV |

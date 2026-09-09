@@ -94,7 +94,7 @@ class App(ctk.CTk):
         super().__init__()
         self.definicoes = armazenamento.carregar()
 
-        self.title("TaGo - Music Tag Editor")
+        self.title(f"{identidade.NOME} {identidade.VERSAO} - {identidade.DESCRICAO}")
         self._por_icone()
         self.geometry(self._geometria_inicial())
         self.minsize(980, 600)
@@ -103,12 +103,20 @@ class App(ctk.CTk):
         self.por_id: dict[str, dict] = {}
         self.ficha_atual: dict | None = None
         self.fila: queue.Queue = queue.Queue()
+        # Ja nao ha botao de Cancel: este sinal so serve para os fios de
+        # trabalho pararem quando se fecha a janela.
         self.cancelar = threading.Event()
         self.a_trabalhar = False
         self.entradas: dict[str, ctk.CTkEntry] = {}
         self.sugestoes_txt: dict[str, ctk.CTkLabel] = {}
         self.botoes_undo: dict[str, ctk.CTkButton] = {}
-        self.imagens_ref: list = []
+        # Uma imagem por caixa de capa, e uma para a ampliacao. Sao precisas
+        # porque o tkinter nao segura sozinho as imagens que mostra: sem uma
+        # referencia nossa, a imagem era recolhida e a caixa ficava vazia.
+        # Guardadas por caixa (e nao numa lista que so cresce) para a imagem
+        # antiga poder ser libertada quando a caixa muda de conteudo.
+        self.imagens_capa_ref: dict = {}
+        self._imagem_ampliada = None
         self._a_tocar = ""          # caminho da musica que esta a tocar
         self._vigia = None          # o "after" que vigia o fim da musica
 
@@ -193,6 +201,9 @@ class App(ctk.CTk):
         self._construir_detalhe()
         self._construir_rodape()
 
+    # Os dois passos principais levam a mesma largura, cada um na sua barra.
+    LARGURA_PASSO = 190
+
     def _construir_topo(self):
         barra = ctk.CTkFrame(self, corner_radius=0)
         barra.grid(row=0, column=0, sticky="ew", padx=0, pady=0)
@@ -214,65 +225,28 @@ class App(ctk.CTk):
                       font=tema.fonte(12),
                       command=self._escolher_pasta).grid(row=0, column=2, padx=8, pady=10)
 
-        ctk.CTkLabel(barra, text="this folder only, subfolders are not scanned",
-                     font=tema.fonte(11),
-                     text_color=tema.TEXTO_FRACO).grid(row=0, column=3, padx=(0, 14), pady=10)
+        # Um dos dois botoes amarelos da janela (o outro e o SEARCH TAGS): sao
+        # os passos principais, e por isso levam os dois a mesma largura - a
+        # par, sem parecer que um manda mais do que o outro.
+        self.btn_analisar = ctk.CTkButton(
+            barra, text="SCAN FOLDER", width=self.LARGURA_PASSO, height=30,
+            font=tema.titulo(12),
+            fg_color=tema.DESTAQUE, hover_color=tema.DESTAQUE_ALTO,
+            text_color=tema.TEXTO_ESCURO, command=self._analisar)
+        self.btn_analisar.grid(row=0, column=3, padx=(0, 14), pady=10)
 
     def _construir_acoes(self):
         barra = ctk.CTkFrame(self, corner_radius=0)
         barra.grid(row=1, column=0, sticky="ew")
-        barra.grid_columnconfigure(3, weight=1)
+        barra.grid_columnconfigure(2, weight=1)
 
-        # Os dois passos principais levam a cor de destaque: sao os unicos
-        # botoes amarelos da janela, por isso nao ha duvidas por onde comecar.
-        # Levam os dois a mesma largura - sao passos a par, e ficavam a olhar
-        # como se um fosse mais importante do que o outro.
-        LARGURA_PASSO = 190
-
-        self.btn_analisar = ctk.CTkButton(
-            barra, text="SCAN FOLDER", width=LARGURA_PASSO, height=30,
-            font=tema.titulo(12),
-            fg_color=tema.DESTAQUE, hover_color=tema.DESTAQUE_ALTO,
-            text_color=tema.TEXTO_ESCURO, command=self._analisar)
-        self.btn_analisar.grid(row=0, column=0, padx=(14, 6), pady=10)
-
-        self.btn_cancelar = ctk.CTkButton(barra, text="Cancel", width=90,
-                                          height=30, font=tema.fonte(12),
-                                          command=self._pedir_cancelamento,
-                                          state="disabled")
-        self.btn_cancelar.grid(row=0, column=1, padx=6, pady=10)
-
-        self.progresso = ctk.CTkProgressBar(barra, width=240, height=10)
-        self.progresso.set(0)
-        self.progresso.grid(row=0, column=2, padx=12, pady=10)
-
-        self.var_estado = ctk.StringVar(
-            value="Pick a folder and click Scan Folder.")
-        ctk.CTkLabel(barra, textvariable=self.var_estado, anchor="w",
-                     font=tema.fonte(12), text_color=tema.TEXTO_FRACO).grid(
-            row=0, column=3, sticky="ew", padx=(0, 14))
-
-        fontes = ctk.CTkFrame(barra, fg_color="transparent", border_width=0)
-        fontes.grid(row=1, column=0, columnspan=4, sticky="ew", padx=14, pady=(0, 8))
-
-        ctk.CTkLabel(fontes, text="SEARCH IN", font=tema.titulo(),
-                     text_color=tema.TEXTO_FRACO).pack(side="left", padx=(0, 10))
-        self.vars_fontes = {}
-        for nome in self._ordem_das_fontes():
-            # Comecam todas por marcar: assim escolhes de propositio onde
-            # queres procurar, em vez de disparar sempre para as cinco.
-            var = ctk.BooleanVar(value=False)
-            self.vars_fontes[nome] = var
-            ctk.CTkCheckBox(fontes, text=nome, variable=var, width=20,
-                            checkbox_width=17, checkbox_height=17,
-                            font=tema.fonte(12),
-                            command=self._mudou_fontes).pack(side="left", padx=5)
-
-        # O "Search Tags" fica aqui, logo a seguir a ultima fonte: e o botao
-        # que faz o que esta escrito nesta linha, e assim escolhe-se onde
-        # procurar e carrega-se ali ao lado, sem saltar para outro sitio.
+        # Toda a barra numa linha so: o Search Tags a abrir, a barra de
+        # progresso colada a ele (e o botao que a poe a andar), o estado a
+        # ocupar o meio e as chaves na ponta. Ja nao ha caixas para escolher
+        # onde procurar - procura-se sempre em todas as fontes que tenham as
+        # chaves postas.
         self.btn_identificar = ctk.CTkButton(
-            fontes, text="SEARCH TAGS", width=190, height=30,
+            barra, text="SEARCH TAGS", width=self.LARGURA_PASSO, height=30,
             font=tema.titulo(12),
             fg_color=tema.DESTAQUE, hover_color=tema.DESTAQUE_ALTO,
             text_color=tema.TEXTO_ESCURO,
@@ -281,25 +255,32 @@ class App(ctk.CTk):
             # isto, ficava com a letra mais fraca do que o Scan Folder.
             text_color_disabled=tema.TEXTO_ESCURO,
             command=self._identificar, state="disabled")
-        self.btn_identificar.pack(side="left", padx=(14, 0))
+        self.btn_identificar.grid(row=0, column=0, padx=(14, 6), pady=10)
 
-        # O botao das chaves vai para a ponta direita da linha: so se mexe nele
-        # uma vez, no principio, e no meio das fontes so estava a atrapalhar.
-        # A moldura tem de ocupar a barra toda para haver "ponta direita" - por
-        # isso e que aqui a linha estica (sticky="ew").
-        self.btn_chaves = ctk.CTkButton(fontes, text="Set up keys", width=145,
+        self.progresso = ctk.CTkProgressBar(barra, width=240, height=10)
+        self.progresso.set(0)
+        self.progresso.grid(row=0, column=1, padx=12, pady=10)
+
+        self.var_estado = ctk.StringVar(value="")
+        ctk.CTkLabel(barra, textvariable=self.var_estado, anchor="w",
+                     font=tema.fonte(12), text_color=tema.TEXTO_FRACO).grid(
+            row=0, column=2, sticky="ew", padx=(6, 14))
+
+        # O botao das chaves fica na ponta direita: so se mexe nele uma vez,
+        # no principio, e no meio do resto so estava a atrapalhar.
+        self.btn_chaves = ctk.CTkButton(barra, text="Set up keys", width=145,
                                         height=26, font=tema.fonte(12),
                                         command=self._configurar_chaves)
-        self.btn_chaves.pack(side="right", padx=(12, 0))
+        self.btn_chaves.grid(row=0, column=3, padx=(0, 14), pady=10)
 
-        # Este aviso fica: diz que falta a chave de uma fonte que esta marcada,
-        # e sem ele so se percebia o problema ao carregar em Search Tags. Ja o
-        # "nenhuma fonte escolhida" saiu daqui - passou a ser uma caixa de
-        # aviso quando se carrega em Search Tags (ver _identificar).
+        # Este aviso fica: diz de que fontes faltam as chaves, e portanto em
+        # que fontes a procura nao vai passar. Sem ele so se perceberia o
+        # problema ao carregar em Search Tags. Fica por baixo, e nao ao lado,
+        # para nao empurrar nada quando aparece e desaparece.
         self.var_aviso_fontes = ctk.StringVar(value="")
-        ctk.CTkLabel(fontes, textvariable=self.var_aviso_fontes,
-                     font=tema.fonte(11),
-                     text_color=tema.AVISO).pack(side="left", padx=10)
+        ctk.CTkLabel(barra, textvariable=self.var_aviso_fontes, anchor="w",
+                     font=tema.fonte(11), text_color=tema.AVISO).grid(
+            row=1, column=0, columnspan=4, sticky="ew", padx=14, pady=(0, 6))
         self._mudou_fontes()
 
     def _construir_tabela(self):
@@ -312,14 +293,6 @@ class App(ctk.CTk):
         topo.grid(row=0, column=0, sticky="ew", padx=6, pady=(6, 0))
         ctk.CTkLabel(topo, text="TRACKS IN THE FOLDER", font=tema.titulo(),
                      text_color=tema.TEXTO_FRACO).pack(side="left", padx=(2, 12))
-        # Os dois com a mesma largura: sao o mesmo gesto, ao contrario.
-        LARGURA_MARCAR = 124
-        ctk.CTkButton(topo, text="Select all", width=LARGURA_MARCAR, height=26,
-                      font=tema.fonte(12),
-                      command=lambda: self._marcar_todas(True)).pack(side="left")
-        ctk.CTkButton(topo, text="Select none", width=LARGURA_MARCAR, height=26,
-                      font=tema.fonte(12),
-                      command=lambda: self._marcar_todas(False)).pack(side="left", padx=6)
 
         # No canto oposto, a procura dentro da pasta. Nao vai a Internet: so
         # esconde da lista as musicas que nao tem aquelas letras no nome, no
@@ -380,6 +353,22 @@ class App(ctk.CTk):
 
         self.tabela.bind("<<TreeviewSelect>>", self._mudou_selecao)
         self.tabela.bind("<Button-1>", self._clique_tabela)
+
+        # Marcar tudo / desmarcar tudo fica por baixo da lista: e sobre a lista
+        # que agem, e assim ficam ao pe do que mudam em vez de na linha do
+        # titulo. Os dois com a mesma largura - sao o mesmo gesto, ao contrario.
+        rodape_lista = ctk.CTkFrame(moldura, fg_color="transparent",
+                                    border_width=0)
+        rodape_lista.grid(row=2, column=0, columnspan=2, sticky="ew",
+                          padx=6, pady=(0, 6))
+        LARGURA_MARCAR = 124
+        ctk.CTkButton(rodape_lista, text="Select all", width=LARGURA_MARCAR,
+                      height=26, font=tema.fonte(12),
+                      command=lambda: self._marcar_todas(True)).pack(side="left")
+        ctk.CTkButton(rodape_lista, text="Select none", width=LARGURA_MARCAR,
+                      height=26, font=tema.fonte(12),
+                      command=lambda: self._marcar_todas(False)).pack(
+            side="left", padx=6)
 
     def _estilo_tabela(self):
         tema.estilizar_tabela(ttk.Style())
@@ -522,10 +511,22 @@ class App(ctk.CTk):
 
         return ImageTk.PhotoImage(img)
 
+    # Largura da coluna do artwork. Tem de dar para a capa atual e para as
+    # quatro colunas de sugestoes a seguir, sem apertar.
+    LARGURA_ARTWORK = 530
+    # Folga entre as caixas das capas e a borda do painel, para nao ficarem
+    # em cima da linha.
+    MARGEM_ARTWORK = 10
+
     def _construir_detalhe(self):
         moldura = ctk.CTkFrame(self)
         moldura.grid(row=3, column=0, sticky="nsew", padx=12, pady=6)
         moldura.grid_columnconfigure(0, weight=1)
+        # A coluna do artwork nao estica, mas tem um minimo garantido: e ela
+        # que fixa a largura do painel das capas. Sem isto, a coluna encolhia
+        # ate ao tamanho do que la estava dentro e o width= da moldura era
+        # ignorado.
+        moldura.grid_columnconfigure(1, minsize=self.LARGURA_ARTWORK)
         moldura.grid_rowconfigure(1, weight=1)
 
         # A linha de cima leva as mesmas margens do quadro dos campos que fica
@@ -669,36 +670,37 @@ class App(ctk.CTk):
             sugestao.grid(row=i, column=5, sticky="ew", padx=(6, 8), pady=2)
             self.sugestoes_txt[campo] = sugestao
 
-        lateral = ctk.CTkFrame(moldura, width=350)
+        lateral = ctk.CTkFrame(moldura, width=self.LARGURA_ARTWORK)
         lateral.grid(row=1, column=1, sticky="nsew", padx=(6, 12), pady=(8, 10))
+        # As duas: os filhos daqui usam pack, e o grid_propagate sozinho so
+        # trava quem usa grid. Sem o pack_propagate, a moldura encolhia ate ao
+        # tamanho do que la esta dentro e as caixas ficavam coladas a borda.
         lateral.grid_propagate(False)
+        lateral.pack_propagate(False)
 
-        ctk.CTkLabel(lateral, text="MATCHES FOUND", font=tema.titulo(),
-                     text_color=tema.TEXTO_FRACO).pack(pady=(6, 2))
-        self.var_candidatos = ctk.StringVar(value="")
-        self.menu_candidatos = ctk.CTkOptionMenu(
-            lateral, variable=self.var_candidatos, values=["(no suggestions)"],
-            width=322, height=28, font=tema.fonte(12),
-            dropdown_font=tema.fonte(12),
-            dropdown_fg_color=tema.PAINEL_ALTO,
-            dropdown_hover_color=tema.CONTROLO,
-            dropdown_text_color=tema.TEXTO,
-            command=self._trocar_candidato)
-        self.menu_candidatos.pack(pady=2, padx=12)
-
+        # Ja nao ha menu de hipoteses: fica a melhor sugestao de cada fonte,
+        # a que tem mais confianca. Qual foi diz-se no cabecalho da coluna das
+        # sugestoes ("SUGGESTED BY ..."); o resto corrige-se a mao.
         ctk.CTkLabel(lateral, text="ARTWORK - CLICK TO PICK", font=tema.titulo(),
-                     text_color=tema.TEXTO_FRACO).pack(pady=(4, 2))
+                     text_color=tema.TEXTO_FRACO).pack(pady=(10, 2))
 
-        # A capa que o ficheiro ja tem fica sozinha em cima, e maior: e a que
-        # esta em jogo, e e com ela que as outras se comparam. As tres
-        # sugestoes ficam logo por baixo, mais pequenas e todas do mesmo
-        # tamanho. Clicar numa escolhe-a (so fica gravada no fim).
+        # A capa que o ficheiro ja tem fica a esquerda, sozinha e grande: e a
+        # que esta em jogo, e e com ela que as outras se comparam. As oito
+        # hipoteses ficam ao lado, numa grelha de quatro por linha, todas do
+        # mesmo tamanho. Clicar numa escolhe-a (so fica gravada no fim).
+        #
+        # Lado a lado, e nao umas por cima das outras, porque a altura deste
+        # painel e o que e: em pe, as duas linhas de hipoteses nao cabiam sem
+        # tirar altura a lista das musicas.
         self.molduras_capa, self.imagens_capa, self.legendas_capa = [], [], []
 
-        def caixa_capa(pai, indice):
+        def caixa_capa(pai, indice, **colocar):
             lado = self.LADOS_CAPA[indice]
             moldura = ctk.CTkFrame(pai, fg_color="transparent", border_width=0)
-            moldura.pack(side="left", padx=2)
+            if "row" in colocar:
+                moldura.grid(padx=2, pady=1, **colocar)
+            else:
+                moldura.pack(side="left", padx=2)
             imagem = ctk.CTkLabel(moldura, text="-", width=lado, height=lado,
                                   font=tema.fonte(12),
                                   text_color=tema.TEXTO_FRACO,
@@ -716,31 +718,40 @@ class App(ctk.CTk):
             self.imagens_capa.append(imagem)
             self.legendas_capa.append(legenda)
 
-        fila_atual = ctk.CTkFrame(lateral, fg_color="transparent", border_width=0)
-        fila_atual.pack(pady=(0, 2))
-        caixa_capa(fila_atual, 0)
+        corpo = ctk.CTkFrame(lateral, fg_color="transparent", border_width=0)
+        corpo.pack(padx=self.MARGEM_ARTWORK, pady=(0, 2))
 
-        fila_sugestoes = ctk.CTkFrame(lateral, fg_color="transparent", border_width=0)
-        fila_sugestoes.pack(pady=(0, 2))
-        for indice in range(1, 4):
-            caixa_capa(fila_sugestoes, indice)
+        atual = ctk.CTkFrame(corpo, fg_color="transparent", border_width=0)
+        atual.pack(side="left", padx=(0, 6), anchor="n")
+        caixa_capa(atual, 0)
+
+        grelha = ctk.CTkFrame(corpo, fg_color="transparent", border_width=0)
+        grelha.pack(side="left", anchor="n")
+        for indice in range(1, self.N_SUGESTOES_CAPA + 1):
+            caixa_capa(grelha, indice,
+                       row=(indice - 1) // self.CAPAS_POR_LINHA,
+                       column=(indice - 1) % self.CAPAS_POR_LINHA)
 
         self.var_capa_estado = ctk.StringVar(value="")
         ctk.CTkLabel(lateral, textvariable=self.var_capa_estado, height=15,
-                     font=tema.fonte(11),
-                     text_color=tema.TEXTO_FRACO, wraplength=330).pack(pady=(0, 2))
+                     font=tema.fonte(11), text_color=tema.TEXTO_FRACO,
+                     wraplength=self.LARGURA_ARTWORK - 30).pack(pady=(0, 2))
 
         botoes_capa = ctk.CTkFrame(lateral, fg_color="transparent", border_width=0)
         botoes_capa.pack(pady=(0, 6))
-        ctk.CTkButton(botoes_capa, text="Pick image from PC", width=180,
-                      height=28, font=tema.fonte(12),
+        # Os dois iguais e pequenos: sao as duas maneiras de mexer na capa, e
+        # nenhuma manda mais do que a outra. Pequenos porque quem manda neste
+        # painel sao as capas - estes so la estao para quando fazem falta.
+        LARGURA_CAPA = 118
+        ctk.CTkButton(botoes_capa, text="Pick image from PC",
+                      width=LARGURA_CAPA, height=24, font=tema.fonte(11),
                       command=self._escolher_capa).pack(side="left", padx=(0, 4))
 
         # Deixa a musica sem capa nenhuma. Como tudo o resto, so mexe mesmo no
         # ficheiro no Gravar Metadata.
         self.btn_remover_capa = ctk.CTkButton(
-            botoes_capa, text="Remove artwork", width=120, height=28,
-            font=tema.fonte(12), hover_color=tema.VERMELHO,
+            botoes_capa, text="Remove artwork", width=LARGURA_CAPA, height=24,
+            font=tema.fonte(11), hover_color=tema.VERMELHO,
             command=self._remover_capa)
         self.btn_remover_capa.pack(side="left", padx=(4, 0))
 
@@ -756,17 +767,13 @@ class App(ctk.CTk):
             command=self._gravar, state="disabled")
         self.btn_gravar.pack(side="left", padx=(14, 8), pady=10)
 
-        ctk.CTkButton(barra, text="Duplicates", width=105, height=34,
-                      font=tema.fonte(12),
-                      command=lambda: self._relatorio(relatorios.duplicados,
-                                                      "Duplicates")
-                      ).pack(side="left", padx=4, pady=10)
-
         # A GPL pede que um programa interativo mostre os avisos legais a quem
-        # o usa. E o que esta janela faz.
+        # o usa. E o que esta janela faz. Fica no canto oposto ao Save Tags:
+        # e o botao que nunca se quer carregar por engano.
         ctk.CTkButton(barra, text="About", width=80, height=34,
                       font=tema.fonte(12),
-                      command=self._sobre).pack(side="left", padx=4, pady=10)
+                      command=self._sobre).pack(side="right", padx=(4, 14),
+                                                pady=10)
 
         self.var_resumo = ctk.StringVar(value="")
         ctk.CTkLabel(barra, textvariable=self.var_resumo, anchor="e",
@@ -776,13 +783,14 @@ class App(ctk.CTk):
     # ------------------------------------------------------------- utilidades
 
     def _fontes_escolhidas(self) -> list[str]:
-        return [nome for nome, var in self.vars_fontes.items()
-                if var.get() and identificador.FONTES[nome].disponivel()]
+        """Procura-se sempre em todas as fontes que estejam prontas a usar."""
+        return [nome for nome in self._ordem_das_fontes()
+                if identificador.FONTES[nome].disponivel()]
 
     # A ordem por que as fontes aparecem na barra. E so a ordem de quem ve: a
     # ordem de preferencia quando as fontes empatam continua a ser a do
     # identificador.py, que nao se mexe daqui.
-    ORDEM_FONTES = ("Beatport", "Traxsource", "Spotify", "Discogs", "MusicBrainz")
+    ORDEM_FONTES = ("Beatport", "Spotify", "Discogs", "MusicBrainz")
 
     def _ordem_das_fontes(self) -> list[str]:
         """As fontes pela ordem de cima, sem perder nenhuma se um dia mudarem."""
@@ -791,12 +799,8 @@ class App(ctk.CTk):
         return ordenadas + [n for n in conhecidas if n not in ordenadas]
 
     def _mudou_fontes(self):
-        por_configurar = [nome for nome, var in self.vars_fontes.items()
-                          if var.get() and not identificador.FONTES[nome].disponivel()]
-        # Nao escolher fonte nenhuma nao e um erro enquanto se esta a escolher:
-        # so passa a ser quando se carrega em Search Tags, e ai o aviso aparece
-        # numa caixa. Aqui so se avisa do que nao se ve de outra maneira - uma
-        # fonte marcada a que faltam as chaves.
+        por_configurar = [nome for nome in self._ordem_das_fontes()
+                          if not identificador.FONTES[nome].disponivel()]
         self.var_aviso_fontes.set(
             f"{', '.join(por_configurar)}: keys not set up yet"
             if por_configurar else "")
@@ -807,7 +811,7 @@ class App(ctk.CTk):
 
     def _configurar_chaves(self):
         """Spotify e Discogs precisam de chaves gratuitas que so o utilizador
-        pode criar. Beatport, Traxsource e MusicBrainz nao precisam de nada."""
+        pode criar. O Beatport e a MusicBrainz nao precisam de nada."""
         janela = ctk.CTkToplevel(self)
         janela.title("Search source keys")
         janela.geometry("620x620")
@@ -944,11 +948,6 @@ class App(ctk.CTk):
             state="normal" if (not sim and self.fichas) else "disabled")
         self.btn_gravar.configure(
             state="normal" if (not sim and self.fichas) else "disabled")
-        self.btn_cancelar.configure(state="normal" if sim else "disabled")
-
-    def _pedir_cancelamento(self):
-        self.cancelar.set()
-        self.var_estado.set("Cancelling...")
 
     # ----------------------------------------------------------------- analise
 
@@ -993,9 +992,8 @@ class App(ctk.CTk):
         if not fontes:
             messagebox.showwarning(
                 "No sources",
-                "Pick at least one search source.\n\n"
-                "To use Spotify or Discogs, click 'Set up keys' and enter "
-                "the keys first.")
+                "There is no search source ready to use.\n\n"
+                "Click 'Set up keys' and enter the keys first.")
             return
 
         self.cancelar.clear()
@@ -1080,6 +1078,21 @@ class App(ctk.CTk):
                     if ficha is not None:
                         ficha["sugestoes"] = sugestoes
                         ficha["indice_sugestao"] = 0
+                        # As capas em cache eram das hipoteses da procura
+                        # anterior. Sem as largar, a caixa 3 (por exemplo)
+                        # passava a dizer a fonte nova mas continuava a
+                        # mostrar - e a dar, a quem la clicasse - a imagem da
+                        # procura antiga.
+                        ficha["capas_sugeridas"] = {}
+                        ficha["capas_a_caminho"] = set()
+                        # Se a capa por gravar tinha vindo de uma dessas
+                        # caixas, deixa de ter dono: larga-se, como ja se
+                        # larga a sugestao de tags escolhida. Uma capa
+                        # escolhida do PC, ou a marca de remover, nao vem das
+                        # hipoteses e fica.
+                        if isinstance(ficha.get("capa_escolhida"), int)                                 and ficha["capa_escolhida"] > 0:
+                            ficha["capa_nova"] = None
+                            ficha["capa_escolhida"] = 0
                         self._atualizar_linha(ficha)
 
                 elif tipo == "capa":
@@ -1098,6 +1111,8 @@ class App(ctk.CTk):
                     ficha = next((f for f in self.fichas if f["caminho"] == caminho), None)
                     if ficha is not None:
                         ficha.setdefault("capas_sugeridas", {})[indice] = dados
+                        # Chegou: sai da lista do que vai a caminho.
+                        ficha.setdefault("capas_a_caminho", set()).discard(indice)
                         if ficha is self.ficha_atual:
                             self._mostrar_capas(ficha)
 
@@ -1145,6 +1160,7 @@ class App(ctk.CTk):
             f["capa_nova"] = None
             f["capa_escolhida"] = 0          # 0 = fica a capa que ja la esta
             f["capas_sugeridas"] = {}
+            f["capas_a_caminho"] = set()
             f["nome_novo"] = ""
             f["valores"] = {c: f.get(c, "") for c in CAMPOS_EDITAVEIS}
             f["originais"] = dict(f["valores"])
@@ -1152,10 +1168,8 @@ class App(ctk.CTk):
 
         self._ocupado(False)
         self._preencher_tabela()
-        cancelado = self.cancelar.is_set()
         self.var_estado.set(
-            ("Scan cancelled. " if cancelado else "")
-            + f"{len(self.fichas)} files read."
+            f"{len(self.fichas)} files read."
             + (" Click Search Tags." if self.fichas else "")
         )
         if not self.fichas:
@@ -1651,9 +1665,6 @@ class App(ctk.CTk):
 
         sugestoes = ficha.get("sugestoes") or []
         if sugestoes:
-            opcoes = [self._rotulo_candidato(s) for s in sugestoes]
-            self.menu_candidatos.configure(values=opcoes, state="normal")
-            self.var_candidatos.set(opcoes[ficha.get("indice_sugestao", 0)])
             atual = sugestoes[ficha.get("indice_sugestao", 0)]
             self.var_cabecalho_sugestao.set(
                 f"SUGGESTED BY {atual.get('fonte', '?').upper()}"
@@ -1661,34 +1672,16 @@ class App(ctk.CTk):
             for campo, etiqueta in self.sugestoes_txt.items():
                 valor = atual.get(campo, "")
                 # Todas as sugestoes na mesma cor, mesmo as duvidosas: a duvida
-                # continua a ver-se no cabecalho e no menu de hipoteses.
+                # continua a ver-se no cabecalho.
                 etiqueta.configure(
                     text=valor or "-",
                     text_color=tema.SUGESTAO if valor else tema.TEXTO_FRACO)
         else:
-            self.menu_candidatos.configure(values=["(no suggestions)"], state="disabled")
-            self.var_candidatos.set("(no suggestions)")
             self.var_cabecalho_sugestao.set("SUGGESTED FROM THE INTERNET")
             for etiqueta in self.sugestoes_txt.values():
                 etiqueta.configure(text="", text_color=tema.TEXTO_FRACO)
 
         self._mostrar_capas(ficha)
-
-    def _rotulo_candidato(self, s) -> str:
-        return (f"{s['confianca']}% [{s.get('fonte', '?')[:3]}] "
-                f"{s['artista'][:20]} - {s['titulo'][:24]}")
-
-    def _trocar_candidato(self, escolha):
-        ficha = self.ficha_atual
-        if not ficha or not ficha.get("sugestoes"):
-            return
-        for i, s in enumerate(ficha["sugestoes"]):
-            if self._rotulo_candidato(s) == escolha:
-                ficha["indice_sugestao"] = i
-                identificador.preencher_genero(s)
-                break
-        self._mostrar_detalhe(ficha)
-        self._atualizar_linha(ficha)
 
     def _sugestao_ativa(self):
         ficha = self.ficha_atual
@@ -1794,28 +1787,43 @@ class App(ctk.CTk):
 
     # ------------------------------------------------------------------ capas
 
-    # O lado de cada caixa de capa: a atual e maior do que as tres sugestoes.
-    LADOS_CAPA = (108, 74, 74, 74)
+    # Quantas hipoteses de capa se mostram, e quantas por linha na grelha.
+    # Oito e o limite do que o identificador devolve (LIMITE_CANDIDATOS).
+    N_SUGESTOES_CAPA = 8
+    CAPAS_POR_LINHA = 4
+
+    # O lado de cada caixa: a atual e bem maior do que as hipoteses, que sao
+    # todas iguais entre si.
+    LADOS_CAPA = (150,) + (74,) * N_SUGESTOES_CAPA
 
     def _miniatura(self, dados: bytes, lado: int = 74):
+        """A imagem pronta a mostrar. Quem chama e que guarda a referencia."""
         try:
             import io
             from PIL import Image
             imagem = Image.open(io.BytesIO(dados))
-            ctk_img = ctk.CTkImage(light_image=imagem, dark_image=imagem,
-                                   size=(lado, lado))
-            self.imagens_ref.append(ctk_img)
-            return ctk_img
+            return ctk.CTkImage(light_image=imagem, dark_image=imagem,
+                                size=(lado, lado))
         except Exception:
             return None
 
     def _garantir_capas_sugeridas(self, ficha):
-        """Vai buscar, em segundo plano, as capas das tres melhores hipoteses."""
-        sugestoes = (ficha.get("sugestoes") or [])[:3]
+        """Vai buscar, em segundo plano, as capas das melhores hipoteses.
+
+        Cada capa que chega manda repintar o painel, e repintar passa por
+        aqui outra vez. Sem o registo do que ja vai a caminho, essa segunda
+        passagem lancava um fio novo para as que faltavam - e esse fio, ao
+        entregar, lancava outro. Com oito hipoteses eram 255 downloads em vez
+        de oito. Por isso um indice so e pedido uma vez.
+        """
+        sugestoes = (ficha.get("sugestoes") or [])[:self.N_SUGESTOES_CAPA]
         cache = ficha.setdefault("capas_sugeridas", {})
-        pendentes = [(i + 1, s) for i, s in enumerate(sugestoes) if (i + 1) not in cache]
+        a_caminho = ficha.setdefault("capas_a_caminho", set())
+        pendentes = [(i + 1, s) for i, s in enumerate(sugestoes)
+                     if (i + 1) not in cache and (i + 1) not in a_caminho]
         if not pendentes:
             return
+        a_caminho.update(indice for indice, _ in pendentes)
         caminho = ficha["caminho"]
 
         def buscar():
@@ -1826,10 +1834,10 @@ class App(ctk.CTk):
         threading.Thread(target=buscar, daemon=True).start()
 
     def _mostrar_capas(self, ficha):
-        """Desenha as quatro caixas: a capa atual e as tres sugeridas."""
+        """Desenha as caixas todas: a capa atual e as hipoteses encontradas."""
         cache = ficha.setdefault("capas_sugeridas", {})
         escolhida = ficha.get("capa_escolhida", 0)
-        sugestoes = (ficha.get("sugestoes") or [])[:3]
+        sugestoes = (ficha.get("sugestoes") or [])[:self.N_SUGESTOES_CAPA]
 
         # Caixa 0: o que esta no ficheiro, a imagem escolhida do PC, ou vazia
         # se a capa estiver marcada para ser removida.
@@ -1840,7 +1848,7 @@ class App(ctk.CTk):
         else:
             self._pintar_slot(0, capa_do_ficheiro(ficha["caminho"]), "current")
 
-        for indice in range(1, 4):
+        for indice in range(1, self.N_SUGESTOES_CAPA + 1):
             if indice > len(sugestoes):
                 self._pintar_slot(indice, None, "")
                 continue
@@ -1876,9 +1884,13 @@ class App(ctk.CTk):
     def _pintar_slot(self, indice, dados, legenda):
         imagem = self._miniatura(dados, self.LADOS_CAPA[indice]) if dados else None
         caixa = self.imagens_capa[indice]
+        # A imagem que esta caixa tinha antes deixa de ser precisa: guardar so
+        # a nova deixa a antiga ser libertada.
         if imagem is not None:
+            self.imagens_capa_ref[indice] = imagem
             caixa.configure(image=imagem, text="")
         else:
+            self.imagens_capa_ref.pop(indice, None)
             caixa.configure(image=None, text="-" if not legenda else "")
             self._limpar_imagem(caixa)
         self.legendas_capa[indice].configure(text=legenda)
@@ -1898,9 +1910,11 @@ class App(ctk.CTk):
         except Exception:
             pass          # se um dia mudarem o customtkinter, nao se estraga nada
 
-    # Ampliacao ao passar o rato, sobre o tamanho da caixa: as sugestoes vao a
-    # 74 x 5 = 370px, a atual a 108 x 5 = 540px.
+    # Ampliacao ao passar o rato, sobre o tamanho da caixa: as hipoteses vao a
+    # 74 x 5 = 370px. A atual daria 150 x 5 = 750px, que ja nao cabe em muitos
+    # ecras - por isso ha um tecto.
     AMPLIACAO = 5
+    AMPLIACAO_MAXIMA = 560
 
     def _dados_do_slot(self, indice) -> bytes | None:
         ficha = self.ficha_atual
@@ -1921,7 +1935,8 @@ class App(ctk.CTk):
         if not dados:
             return
 
-        lado = self.LADOS_CAPA[indice] * self.AMPLIACAO
+        lado = min(self.LADOS_CAPA[indice] * self.AMPLIACAO,
+                   self.AMPLIACAO_MAXIMA)
         try:
             import io
             from PIL import Image
@@ -1960,7 +1975,7 @@ class App(ctk.CTk):
         etiqueta.pack(padx=4, pady=4)
         etiqueta.bind("<Button-1>", lambda e, k=indice: self._escolher_capa_slot(k))
 
-        self.imagens_ref.append(grande)
+        self._imagem_ampliada = grande
         self._ampliacao = janela
 
     def _fechar_ampliacao(self):
@@ -2053,8 +2068,7 @@ class App(ctk.CTk):
                 f"{len(alvos)} audio files are about to be changed:\n\n{nomes}\n\n"
                 "Track number, disc number and album artist are always "
                 "removed.\n\n"
-                "A backup of each original is saved automatically in the "
-                "_backup_tags subfolder.\n\n"
+                "No copy of the original is kept: this cannot be undone.\n\n"
                 "Continue?"):
             return
 
@@ -2103,10 +2117,9 @@ class App(ctk.CTk):
             messagebox.showinfo("Saved", mensagem)
         self.var_estado.set(mensagem.splitlines()[0])
 
-    # Nao ha aqui nenhum "reverter": o botao foi retirado da app. As copias de
-    # seguranca continuam a ser guardadas em _backup_tags, e o escritor.py
-    # continua a saber repo-las - se um dia o botao voltar, e so voltar a
-    # chamar escritor.reverter().
+    # Nao ha aqui nenhum "reverter", nem ha o que reverter: a app deixou de
+    # guardar copias dos ficheiros de audio. Em _backup_tags fica so o
+    # historico.log, a dizer o que foi mudado.
 
     # ------------------------------------------------------------------ sobre
 
