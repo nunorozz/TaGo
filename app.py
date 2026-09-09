@@ -23,6 +23,7 @@ carrega em Gravar. Nada e escrito nos ficheiros sem esse ultimo passo.
 from __future__ import annotations
 
 import queue
+import sys
 import threading
 import traceback
 import tkinter as tk
@@ -129,21 +130,35 @@ class App(ctk.CTk):
             self.var_pasta.set(ultima)
 
     def _por_icone(self):
-        """O logo na barra de titulo e na barra de tarefas do Windows.
+        """O logo na barra de titulo e na barra de tarefas.
+
+        No Windows quem serve e o .ico, que leva varios tamanhos dentro. Fora
+        dele o `iconbitmap` nao le esse formato, e o caminho e o PNG pelo
+        `iconphoto` - no macOS o icone do Dock vem do bundle e nao daqui, mas
+        isto ainda serve para quando a app corre a partir do codigo.
 
         Nunca deve impedir a app de abrir: se o ficheiro faltar ou o sistema
         recusar o icone, fica o icone normal do tkinter e segue-se.
         """
-        icone = dados.recurso("tago.ico")
-        if not icone.exists():
+        if sys.platform == "win32":
+            icone = dados.recurso("tago.ico")
+            if icone.exists():
+                try:
+                    self.iconbitmap(default=str(icone))
+                    return
+                except Exception:
+                    pass
+
+        logo = dados.recurso("logo.png")
+        if not logo.exists():
             return
         try:
-            self.iconbitmap(default=str(icone))
+            # A referencia tem de ficar guardada: se o PhotoImage for recolhido
+            # pelo Python, o tkinter fica com um icone vazio.
+            self._icone_janela = tk.PhotoImage(file=str(logo))
+            self.iconphoto(True, self._icone_janela)
         except Exception:
-            try:
-                self.iconphoto(True, tk.PhotoImage(file=str(icone)))
-            except Exception:
-                pass
+            pass
 
     ALTURA_LOGO = 30
 

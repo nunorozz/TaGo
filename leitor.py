@@ -20,22 +20,38 @@ Nao ha uma so maneira de tocar audio em Python que funcione com todos os
 formatos, por isso ha tres, tentadas por esta ordem:
 
 1. **VLC** - toca tudo (mp3, flac, m4a, ogg, wma, wav, aiff) e deixa parar a
-   meio. E o caminho normal. Precisa do VLC instalado no computador e do
-   pacote `python-vlc`.
+   meio. E o caminho normal, e no macOS e no Linux e o unico que a app
+   controla. Precisa do VLC instalado no computador e do pacote `python-vlc`.
 2. **O leitor do proprio Windows (MCI)** - nao precisa de instalar nada, mas
-   so da conta de MP3 e WAV.
+   so da conta de MP3 e WAV, e **so existe no Windows**.
 3. **O leitor de musica do utilizador** - abre o ficheiro no programa que
    estiver associado. Funciona sempre, mas ja e fora da app: nao da para
    parar daqui.
 
 Toca-se uma musica de cada vez: pedir outra para a anterior.
+
+Fora do Windows o passo 2 nao existe: sem VLC, resta abrir a musica no
+leitor do utilizador. E por isso que no macOS o VLC deixa de ser o caminho
+normal e passa a ser praticamente obrigatorio para se ouvir alguma coisa
+dentro da app.
 """
 from __future__ import annotations
 
-import ctypes
 import os
-from ctypes import wintypes
+import subprocess
+import sys
 from pathlib import Path
+
+# Em que sistema e que a app esta a correr. O MCI (passo 2) e a maneira de
+# abrir um ficheiro no leitor do utilizador mudam com isto - e o `wintypes`
+# nem sequer se pode importar fora do Windows, por isso o import fica aqui
+# dentro e nao no topo do ficheiro.
+WINDOWS = sys.platform == "win32"
+MACOS = sys.platform == "darwin"
+
+if WINDOWS:
+    import ctypes
+    from ctypes import wintypes
 
 
 class ErroLeitura(Exception):
@@ -110,7 +126,15 @@ _winmm = None
 
 
 def _mci(comando: str) -> tuple[int, str]:
+    """Manda um comando ao MCI do Windows. Fora do Windows nao faz nada.
+
+    Devolver sempre erro fora do Windows deixa os sitios que chamam isto
+    escritos de uma so maneira: eles ja tratam a falha, porque o MCI tambem
+    falha no Windows quando o formato nao e MP3 nem WAV.
+    """
     global _winmm
+    if not WINDOWS:
+        return 1, ""
     if _winmm is None:
         _winmm = ctypes.WinDLL("winmm")
         _winmm.mciSendStringW.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR,
@@ -235,7 +259,7 @@ def tocar(caminho) -> str:
 
     # 3. O leitor de musica do utilizador
     try:
-        os.startfile(str(p))          # so existe no Windows
+        _abrir_no_leitor_do_sistema(p)
     except Exception as e:
         raise ErroLeitura(
             f"could not play this file ({e}). "
@@ -244,8 +268,25 @@ def tocar(caminho) -> str:
     return "externo"
 
 
+def _abrir_no_leitor_do_sistema(p: Path):
+    """Entrega o ficheiro ao programa que o sistema tem associado.
+
+    Cada sistema tem a sua maneira: o `os.startfile` so existe no Windows, o
+    macOS tem o `open` e a maior parte do Linux tem o `xdg-open`.
+    """
+    if WINDOWS:
+        os.startfile(str(p))
+        return
+    comando = "open" if MACOS else "xdg-open"
+    # check=True para que um comando que falhe levante excecao aqui, e nao
+    # passe por bem-sucedido - quem chama isto conta com isso.
+    subprocess.run([comando, str(p)], check=True)
+
+
 def descricao_motor() -> str:
     """Para dizer ao utilizador o que e que esta a tocar as musicas."""
     if _motor_vlc() is not None:
         return "VLC"
-    return "Windows player (MP3 and WAV only; the rest opens in your player)"
+    if WINDOWS:
+        return "Windows player (MP3 and WAV only; the rest opens in your player)"
+    return "no VLC found - music opens in your own player"

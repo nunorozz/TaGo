@@ -82,11 +82,12 @@ SEGREDOS = ("credenciais.json", "definicoes.json", "chave_acoustid.txt",
 # pasta nao passa a boleia.
 FONTES = [
     "app.py", "armazenamento.py", "criar_logo.py", "dados.py", "empacotar.py",
+    "empacotar_mac.py",
     "escritor.py", "exportar.py", "fonte_beatport.py", "fonte_discogs.py",
     "fonte_musicbrainz.py", "fonte_spotify.py",
     "identidade.py", "identificador.py", "leitor.py", "metadata.py",
     "ondas.py", "relatorios.py", "scanner.py", "tema.py",
-    "Abrir App.bat", "Criar Instalador.bat",
+    "Abrir App.bat", "Criar Instalador.bat", "Criar Instalador Mac.command",
     "LICENSE", "THIRD-PARTY.md", "README.md", ".gitignore",
 ]
 PASTAS_FONTE = ["recursos", "instalador"]

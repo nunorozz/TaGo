@@ -185,6 +185,10 @@ def main():
                 sizes=[(16, 16), (24, 24), (32, 32), (48, 48),
                        (64, 64), (128, 128), (256, 256)])
 
+    # O mesmo para o macOS, que quer um .icns e nao le .ico nenhum. O Dock e
+    # o Finder mostram-no grande, por isso parte-se de 1024 e nao de 512.
+    desenhar(1024).save(RECURSOS / "tago.icns")
+
     print("gravado em", RECURSOS)
     for f in sorted(RECURSOS.iterdir()):
         print(f"  {f.name:12} {f.stat().st_size:>8} bytes")

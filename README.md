@@ -36,6 +36,36 @@ Se o Inno Setup não estiver instalado, o ficheiro trata de o instalar. Se
 mesmo assim faltar, fica na mesma a pasta `dist\` com um
 `Instalar TaGo.bat` ao lado, que faz o mesmo de maneira mais simples.
 
+### No Mac
+
+A app corre em macOS, mas **o instalador do Mac tem de ser feito num Mac**: o
+PyInstaller embrulha o Python e o Tk da máquina onde está, e não constrói para
+um sistema a partir de outro.
+
+Num Mac, duplo-clique em **`Criar Instalador Mac.command`**. Faz o mesmo que o
+`.bat` do Windows, mas à maneira de lá:
+
+1. Constrói o `dist/TaGo.app` (com o **PyInstaller**).
+2. Embrulha-o num `Output/TaGo-2.0.dmg`, com o atalho para a pasta Aplicações
+   ao lado, usando o **hdiutil** que já vem no macOS.
+
+Para correr a app a partir do código, sem empacotar nada: `python3 app.py`.
+
+Três coisas mudam em relação ao Windows:
+
+- **A app não vai assinada.** Sem uma conta Apple Developer, o Gatekeeper
+  recusa-a e diz que "está danificada" — não está, é só o que ele diz a
+  software não assinado. Na primeira vez abre-se pelo **botão direito →
+  Abrir**, ou tira-se a marca de uma vez:
+  `xattr -dr com.apple.quarantine /Applications/TaGo.app`
+- **O VLC faz mais falta.** O leitor de reserva do Windows (o MCI) não existe
+  no macOS: sem o VLC, carregar em play abre a música no leitor do sistema e a
+  app deixa de a controlar. Instala-se com `brew install --cask vlc`.
+- **As definições e as chaves** ficam em `~/Library/Application Support/TaGo`,
+  que é o sítio que o macOS reserva para isso, e não em `%APPDATA%`.
+
+---
+
 ### Quatro coisas que convém saber
 
 - **Não é preciso ser administrador.** Por omissão a app instala-se na pasta

@@ -48,9 +48,17 @@ def _pasta_dados() -> Path:
     escolhida = os.environ.get("TAGO_DADOS")
     if escolhida:
         return Path(escolhida)
-    appdata = os.environ.get("APPDATA")
-    if appdata:
-        return Path(appdata) / NOME
+
+    # Cada sistema tem o seu sitio para isto, e convem respeita-lo: e onde as
+    # copias de seguranca do sistema vao buscar, e onde quem usa o computador
+    # espera encontrar as coisas da app.
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA")
+        if appdata:
+            return Path(appdata) / NOME
+    elif sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / NOME
+
     return Path.home() / f".{NOME.lower()}"
 
 
