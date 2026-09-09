@@ -51,6 +51,20 @@ Num Mac, duplo-clique em **`Criar Instalador Mac.command`**. Faz o mesmo que o
 
 Para correr a app a partir do código, sem empacotar nada: `python3 app.py`.
 
+> **Não precisas de um Mac para fazer o `.dmg`.** Sempre que se empurra uma
+> tag de versão (`v2.1`, por exemplo), o GitHub arranca um Mac na nuvem,
+> corre lá o `empacotar_mac.py` e pendura o resultado na release —
+> Apple Silicon e Intel, mais o instalador do Windows. A receita está em
+> `.github/workflows/instaladores.yml`. O que isso **não** faz é ver a app a
+> funcionar: confirma que a build passa, não que a janela aparece bem.
+
+> **Macs antigos não servem para construir.** Um Mac de 2009 fica preso no
+> macOS High Sierra (10.13), e aí param dois caminhos ao mesmo tempo: o
+> Python 3.12 exige o macOS 11, e o PyInstaller 6 só corre no 10.15 ou
+> superior. O Homebrew também já não suporta essas versões. Uma máquina
+> dessas ainda serve para *experimentar* a app a partir do código, com um
+> Python antigo — não para gerar o que se distribui.
+
 Três coisas mudam em relação ao Windows:
 
 - **A app não vai assinada.** Sem uma conta Apple Developer, o Gatekeeper

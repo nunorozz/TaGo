@@ -1,0 +1,137 @@
+# Faz os instaladores das tres arquiteturas e pendura-os na release.
+#
+# Corre quando se empurra uma tag de versao (v2.0, v2.1, ...). O GitHub
+# arranca uma maquina de cada sistema, corre la o empacotar que ja existe no
+# projeto, e anexa o que sair a release dessa tag.
+#
+# A razao de isto existir: o TaGo faz-se num PC Windows, e um .app de macOS
+# so se constroi num Mac - o PyInstaller embrulha o Python e o Tk da maquina
+# onde esta e nao constroi para um sistema a partir de outro. Em vez de ser
+# preciso ter um Mac a mao, pede-se um emprestado ao GitHub durante cinco
+# minutos.
+#
+# O que isto NAO faz: ver a app a funcionar. Uma maquina destas nao tem ecra
+# nem ninguem a carregar nos botoes - confirma que a build passa e que os
+# ficheiros se fazem, nao que a janela aparece bem.
+
+name: Instaladores
+
+on:
+  push:
+    tags: ["v*"]
+  # Tambem se pode correr a mao, a partir do separador Actions, para
+  # experimentar sem ter de criar uma tag. Ai fica so o resultado guardado
+  # no proprio Actions, sem tocar em nenhuma release.
+  workflow_dispatch:
+
+# Sem isto, o token com que os passos correm nao pode escrever na release.
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    name: macOS (${{ matrix.arquitetura }})
+    strategy:
+      fail-fast: false        # se uma arquitetura falhar, a outra continua
+      matrix:
+        include:
+          - runner: macos-14   # Apple Silicon (M1 e seguintes)
+            arquitetura: AppleSilicon
+          - runner: macos-13   # os Macs Intel, que ainda sao muitos
+            arquitetura: Intel
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar o que a app precisa
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+
+      - name: Fazer o .app e o .dmg
+        run: python empacotar_mac.py
+
+      # Os dois .dmg chamam-se o mesmo, e sao coisas diferentes: um so corre
+      # em Macs Intel e o outro em Apple Silicon. Sem isto, o segundo a ser
+      # enviado apagava o primeiro na release.
+      - name: Por a arquitetura no nome
+        run: |
+          cd Output
+          for f in *.dmg; do
+            mv "$f" "${f%.dmg}-${{ matrix.arquitetura }}.dmg"
+          done
+          ls -la
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dmg-${{ matrix.arquitetura }}
+          path: Output/*.dmg
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar o que a app precisa
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+
+      # O Inno Setup ja vem instalado nestas maquinas, mas em
+      # "C:\Program Files (x86)\Inno Setup 6" - que e um dos sitios onde o
+      # empacotar.py o procura, por isso nao ha nada a fazer aqui.
+      - name: Fazer o instalador
+        run: python empacotar.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: setup-windows
+          path: Output/*.exe
+
+  publicar:
+    name: Pendurar na release
+    needs: [mac, windows]
+    # So quando isto vem de uma tag: correr a mao serve para experimentar, e
+    # nesses casos nao ha release nenhuma onde pendurar.
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: ficheiros
+          merge-multiple: true
+
+      - name: Enviar para a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la ficheiros
+
+          # A release pode ainda nao existir - a tag e que dispara isto, e uma
+          # tag por si so nao cria release nenhuma. Se faltar, faz-se aqui, em
+          # rascunho: assim ninguem recebe aviso de uma versao nova antes de
+          # alguem escrever as notas e carregar em publicar.
+          if ! gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release create "${GITHUB_REF_NAME}" \
+              --title "${GITHUB_REPOSITORY##*/} ${GITHUB_REF_NAME#v}" \
+              --notes "Instaladores feitos automaticamente a partir da tag ${GITHUB_REF_NAME}." \
+              --draft \
+              --repo "${GITHUB_REPOSITORY}"
+          fi
+
+          # --clobber para poder correr outra vez sobre a mesma tag sem dar
+          # erro por o ficheiro ja la estar.
+          gh release upload "${GITHUB_REF_NAME}" ficheiros/* \
+            --clobber --repo "${GITHUB_REPOSITORY}"

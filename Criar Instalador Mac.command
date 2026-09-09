@@ -18,8 +18,10 @@ done
 
 if [ -z "$PY" ]; then
     echo "Nao encontrei o Python neste Mac."
-    echo "Instala-o com:  brew install python@3.12"
-    echo "(ou de python.org, se nao tiveres o Homebrew)"
+    echo "Instala-o de python.org/downloads/macos - o instalador oficial ja"
+    echo "traz o Tk, que a interface precisa."
+    echo "Com Homebrew:  brew install python@3.12  (so em macOS recente:"
+    echo "o Homebrew deixou de suportar as versoes antigas)"
     read -r -p "Carrega em Enter para fechar."
     exit 1
 fi

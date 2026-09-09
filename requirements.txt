@@ -1,0 +1,17 @@
+# O que a app precisa para correr a partir do codigo.
+#     python -m pip install -r requirements.txt
+#
+# Nao leva versoes fixas de proposito: o projeto e pequeno e nao ha nenhuma
+# destas de que dependa uma versao em particular. Se um dia uma delas partir
+# alguma coisa ao mudar, e aqui que se prende.
+
+mutagen              # ler e gravar as tags - o coracao da app
+musicbrainzngs       # a fonte MusicBrainz
+requests             # os pedidos ao Spotify e ao Beatport
+customtkinter        # a interface
+Pillow               # as capas e os icones
+
+# Toca as musicas e desenha as formas de onda. E so a ponte para o VLC: o
+# programa em si tem de estar instalado a parte, porque tem licenca propria
+# e nao pode ir dentro da app.
+python-vlc
