@@ -1,0 +1,10 @@
+# Os scripts do macOS e do Linux tem de chegar la com fins de linha Unix.
+# Com CRLF, o shell le o \r como parte do nome do interpretador e responde
+# "bad interpreter: /bin/bash^M" - o script nem chega a arrancar. Como este
+# repositorio se trabalha em Windows, onde o Git converte para CRLF por
+# omissao, tem de ficar escrito.
+*.command text eol=lf
+*.sh      text eol=lf
+
+# E os do Windows tem de chegar com CRLF, pela mesma razao ao contrario.
+*.bat text eol=crlf
