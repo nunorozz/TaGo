@@ -108,6 +108,10 @@ class App(ctk.CTk):
         # trabalho pararem quando se fecha a janela.
         self.cancelar = threading.Event()
         self.a_trabalhar = False
+        # Modo automatico: o botao I'M FEELING LAZY poe isto a True e o
+        # fluxo (scan -> procura -> aplicar -> gravar) vai avancando sozinho
+        # a cada passo que termina, em _processar_fila. Um erro poe-o a False.
+        self.automatico = False
         self.entradas: dict[str, ctk.CTkEntry] = {}
         self.sugestoes_txt: dict[str, ctk.CTkLabel] = {}
         self.botoes_undo: dict[str, ctk.CTkButton] = {}
@@ -240,26 +244,39 @@ class App(ctk.CTk):
                       font=tema.fonte(12),
                       command=self._escolher_pasta).grid(row=0, column=2, padx=8, pady=10)
 
-        # Um dos dois botoes amarelos da janela (o outro e o SEARCH TAGS): sao
-        # os passos principais, e por isso levam os dois a mesma largura - a
-        # par, sem parecer que um manda mais do que o outro.
+        # O I'M FEELING LAZY faz o percurso inteiro sem parar: analisa a
+        # pasta, marca todas as musicas, procura as tags, aceita a primeira
+        # sugestao de cada uma, poe o nome "Artista - Titulo (Mistura)" e
+        # grava. So pergunta uma vez, antes de escrever nos ficheiros. Fica
+        # aqui, na ponta da barra da pasta: escolhe-se a pasta e carrega-se
+        # ao lado, sem passar pelos passos um a um.
+        self.btn_auto = ctk.CTkButton(
+            barra, text="I'M FEELING LAZY", width=self.LARGURA_PASSO, height=30,
+            font=tema.titulo(12),
+            fg_color=tema.VERDE, hover_color=tema.VERDE_ALTO,
+            text_color=tema.TEXTO_CLARO, command=self._auto)
+        self.btn_auto.grid(row=0, column=3, padx=(0, 14), pady=10)
+
+    def _construir_acoes(self):
+        barra = ctk.CTkFrame(self, corner_radius=0)
+        barra.grid(row=1, column=0, sticky="ew")
+        barra.grid_columnconfigure(3, weight=1)
+
+        # Toda a barra numa linha so: os dois passos principais a abrir, a
+        # barra de progresso a seguir, o estado a ocupar o meio e as chaves na
+        # ponta. Ja nao ha caixas para escolher onde procurar - procura-se
+        # sempre em todas as fontes que tenham as chaves postas.
+        # Os dois botoes amarelos da janela ficam a par, na mesma barra e pela
+        # ordem por que se usam: primeiro o SCAN FOLDER, depois o SEARCH TAGS.
+        # Levam a mesma largura - sao passos iguais, sem parecer que um manda
+        # mais do que o outro.
         self.btn_analisar = ctk.CTkButton(
             barra, text="SCAN FOLDER", width=self.LARGURA_PASSO, height=30,
             font=tema.titulo(12),
             fg_color=tema.DESTAQUE, hover_color=tema.DESTAQUE_ALTO,
             text_color=tema.TEXTO_ESCURO, command=self._analisar)
-        self.btn_analisar.grid(row=0, column=3, padx=(0, 14), pady=10)
+        self.btn_analisar.grid(row=0, column=0, padx=(14, 6), pady=10)
 
-    def _construir_acoes(self):
-        barra = ctk.CTkFrame(self, corner_radius=0)
-        barra.grid(row=1, column=0, sticky="ew")
-        barra.grid_columnconfigure(2, weight=1)
-
-        # Toda a barra numa linha so: o Search Tags a abrir, a barra de
-        # progresso colada a ele (e o botao que a poe a andar), o estado a
-        # ocupar o meio e as chaves na ponta. Ja nao ha caixas para escolher
-        # onde procurar - procura-se sempre em todas as fontes que tenham as
-        # chaves postas.
         self.btn_identificar = ctk.CTkButton(
             barra, text="SEARCH TAGS", width=self.LARGURA_PASSO, height=30,
             font=tema.titulo(12),
@@ -270,23 +287,23 @@ class App(ctk.CTk):
             # isto, ficava com a letra mais fraca do que o Scan Folder.
             text_color_disabled=tema.TEXTO_ESCURO,
             command=self._identificar, state="disabled")
-        self.btn_identificar.grid(row=0, column=0, padx=(14, 6), pady=10)
+        self.btn_identificar.grid(row=0, column=1, padx=(0, 6), pady=10)
 
         self.progresso = ctk.CTkProgressBar(barra, width=240, height=10)
         self.progresso.set(0)
-        self.progresso.grid(row=0, column=1, padx=12, pady=10)
+        self.progresso.grid(row=0, column=2, padx=12, pady=10)
 
         self.var_estado = ctk.StringVar(value="")
         ctk.CTkLabel(barra, textvariable=self.var_estado, anchor="w",
                      font=tema.fonte(12), text_color=tema.TEXTO_FRACO).grid(
-            row=0, column=2, sticky="ew", padx=(6, 14))
+            row=0, column=3, sticky="ew", padx=(6, 14))
 
         # O botao das chaves fica na ponta direita: so se mexe nele uma vez,
         # no principio, e no meio do resto so estava a atrapalhar.
         self.btn_chaves = ctk.CTkButton(barra, text="Set up keys", width=145,
                                         height=26, font=tema.fonte(12),
                                         command=self._configurar_chaves)
-        self.btn_chaves.grid(row=0, column=3, padx=(0, 14), pady=10)
+        self.btn_chaves.grid(row=0, column=4, padx=(0, 14), pady=10)
 
         # Este aviso fica: diz de que fontes faltam as chaves, e portanto em
         # que fontes a procura nao vai passar. Sem ele so se perceberia o
@@ -295,7 +312,7 @@ class App(ctk.CTk):
         self.var_aviso_fontes = ctk.StringVar(value="")
         ctk.CTkLabel(barra, textvariable=self.var_aviso_fontes, anchor="w",
                      font=tema.fonte(11), text_color=tema.AVISO).grid(
-            row=1, column=0, columnspan=4, sticky="ew", padx=14, pady=(0, 6))
+            row=1, column=0, columnspan=5, sticky="ew", padx=14, pady=(0, 6))
         self._mudou_fontes()
 
     def _construir_tabela(self):
@@ -959,6 +976,7 @@ class App(ctk.CTk):
         self.a_trabalhar = sim
         estado = "disabled" if sim else "normal"
         self.btn_analisar.configure(state=estado)
+        self.btn_auto.configure(state=estado)
         self.btn_identificar.configure(
             state="normal" if (not sim and self.fichas) else "disabled")
         self.btn_gravar.configure(
@@ -1074,6 +1092,151 @@ class App(ctk.CTk):
 
         threading.Thread(target=trabalho, daemon=True).start()
 
+    # ------------------------------------------------------------- automatico
+
+    # Campos que o modo automatico esvazia sempre. Nao e falta de informacao:
+    # o album que as fontes devolvem e o da edicao onde a faixa calhou sair, e
+    # o comentario vem cheio de lixo de quem exportou o ficheiro.
+    CAMPOS_AUTO_VAZIOS = ("album", "comentario")
+
+    def _auto(self):
+        """Faz tudo de seguida: scan, procura, aceitar sugestoes, nome, gravar.
+
+        Cada passo corre num fio e avisa pela fila quando acaba; e ai, em
+        _processar_fila, que se passa ao passo seguinte enquanto
+        self.automatico estiver ligado.
+        """
+        if self.a_trabalhar:
+            return
+        if not self._fontes_escolhidas():
+            messagebox.showwarning(
+                "No sources",
+                "There is no search source ready to use.\n\n"
+                "Click 'Set up keys' and enter the keys first.")
+            return
+        self.automatico = True
+        self._analisar()
+        # _analisar recusa-se (pasta invalida) sem passar pela fila: nao se
+        # pode ficar com o modo ligado a espera de um passo que nao vem.
+        if not self.a_trabalhar:
+            self.automatico = False
+
+    def _auto_depois_de_analisar(self):
+        if not self.fichas:
+            self.automatico = False
+            return
+        self._marcar_todas(True)
+        self._identificar()
+        if not self.a_trabalhar:
+            self.automatico = False
+
+    def _auto_depois_de_procurar(self):
+        self.automatico = False
+        sem_sugestao = []
+        sem_nome = []
+        for ficha in self.fichas:
+            if not ficha["marcado"]:
+                continue
+            sugestoes = ficha.get("sugestoes") or []
+            if not sugestoes:
+                sem_sugestao.append(ficha["ficheiro"])
+                ficha["marcado"] = False
+                self._atualizar_linha(ficha)
+                continue
+            sugestao = sugestoes[0]
+            for campo in CAMPOS_EDITAVEIS:
+                valor = sugestao.get(campo, "")
+                if valor:
+                    ficha["valores"][campo] = valor
+            # A tag Title diz o mesmo que o nome do ficheiro: leva sempre a
+            # mistura no fim, e "(Original Mix)" quando a sugestao nao traz
+            # nenhuma.
+            ficha["valores"]["titulo"] = escritor.titulo_com_mistura(
+                ficha["valores"].get("titulo", ""))
+            # Estes vao vazios de proposito: um campo vazio, ao gravar, apaga
+            # a tag do ficheiro.
+            for campo in self.CAMPOS_AUTO_VAZIOS:
+                ficha["valores"][campo] = ""
+            try:
+                ficha["nome_novo"] = escritor.nome_com_mistura(
+                    ficha["valores"].get("artista", ""),
+                    ficha["valores"].get("titulo", ""), ficha["caminho"])
+            except escritor.ErroEscrita as e:
+                # As tags dessa musica gravam-se na mesma; o nome e que fica
+                # como esta. Ninguem adivinha isso a olhar para a tabela, por
+                # isso vai para o aviso do fim.
+                ficha["nome_novo"] = ""
+                sem_nome.append(f"{ficha['ficheiro']}: {e}")
+            if ficha["nome_novo"] == ficha["ficheiro"]:
+                ficha["nome_novo"] = ""
+            self._atualizar_linha(ficha)
+
+        repetidos = self._auto_largar_nomes_repetidos()
+
+        # As caixas do painel mostram ainda os valores antigos; se ficassem
+        # assim, o _guardar_edicoes de _gravar escrevia-os por cima.
+        if self.ficha_atual:
+            self._mostrar_detalhe(self.ficha_atual)
+
+        # Tudo o que o AUTO nao conseguiu fazer sai num aviso so, antes de se
+        # perguntar se se grava: e a ultima vez que se pode dizer que nao.
+        avisos = []
+        if sem_sugestao:
+            avisos.append(
+                f"{len(sem_sugestao)} tracks got no suggestion and are not "
+                "going to be touched:\n" + self._lista_curta(sem_sugestao))
+        if sem_nome:
+            avisos.append(
+                f"{len(sem_nome)} tracks keep the file name they have (the "
+                "tags are saved all the same):\n" + self._lista_curta(sem_nome))
+        if repetidos:
+            avisos.append(
+                f"{len(repetidos)} tracks keep the file name they have, "
+                "because two of them would end up with the same one:\n"
+                + self._lista_curta(repetidos))
+        if avisos:
+            messagebox.showwarning("Left out", "\n\n".join(avisos))
+        self._gravar()
+
+    def _auto_largar_nomes_repetidos(self) -> list[str]:
+        """Larga as renomeacoes que dariam dois ficheiros com o mesmo nome.
+
+        O escritor.nome_com_mistura so sabe o que ja esta no disco; nao sabe
+        dos nomes que as outras musicas deste mesmo lote estao a pedir. Sem
+        isto, dois ficheiros com a mesma sugestao pediam o mesmo nome: o
+        primeiro renomeava e o segundo rebentava a meio da gravacao, ja com as
+        tags escritas.
+
+        Compara-se contra os nomes que vao existir no fim - o nome novo de
+        quem muda, o de agora de quem nao muda - e larga-se uma renomeacao de
+        cada vez, recomecando: largar uma devolve o nome antigo a lista dos
+        ocupados, e isso pode desfazer o encaixe da seguinte.
+        """
+        largadas: list[str] = []
+        while True:
+            ocupados = {f["ficheiro"].lower() for f in self.fichas
+                        if not f.get("nome_novo")}
+            for ficha in self.fichas:
+                novo = ficha.get("nome_novo")
+                if not novo:
+                    continue
+                if novo.lower() in ocupados:
+                    largadas.append(f"{ficha['ficheiro']}  ->  {novo}")
+                    ficha["nome_novo"] = ""
+                    self._atualizar_linha(ficha)
+                    break
+                ocupados.add(novo.lower())
+            else:
+                return largadas
+
+    @staticmethod
+    def _lista_curta(nomes, quantos: int = 12) -> str:
+        """A lista para dentro de um aviso, cortada quando e comprida demais."""
+        lista = "\n".join(f"  - {n}" for n in nomes[:quantos])
+        if len(nomes) > quantos:
+            lista += f"\n  ... and {len(nomes) - quantos} more"
+        return lista
+
     def _processar_fila(self):
         try:
             while True:
@@ -1086,6 +1249,8 @@ class App(ctk.CTk):
 
                 elif tipo == "analise_pronta":
                     self._receber_fichas(dados)
+                    if self.automatico:
+                        self._auto_depois_de_analisar()
 
                 elif tipo == "sugestoes":
                     caminho, sugestoes = dados
@@ -1140,6 +1305,8 @@ class App(ctk.CTk):
                         + ". Click a track to review and approve.")
                     if self.ficha_atual:
                         self._mostrar_detalhe(self.ficha_atual)
+                    if self.automatico:
+                        self._auto_depois_de_procurar()
 
                 elif tipo == "fonte_desligada":
                     nome, motivo = dados
@@ -1153,12 +1320,17 @@ class App(ctk.CTk):
                     messagebox.showwarning(f"{nome} unavailable", aviso)
 
                 elif tipo == "erro_ligacao":
+                    # A procura parou a meio: as musicas que faltavam nao
+                    # sao "sem sugestao", ficaram por procurar. O AUTO nao
+                    # pode gravar uma parte e deixar a outra como esta.
+                    self.automatico = False
                     messagebox.showwarning(
                         "No connection",
                         f"Could not reach the search sources.\n\n{dados}\n\n"
                         "You can carry on editing the tags by hand.")
 
                 elif tipo == "erro":
+                    self.automatico = False
                     self._ocupado(False)
                     messagebox.showerror("Unexpected error", dados)
 

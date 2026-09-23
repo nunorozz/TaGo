@@ -16,7 +16,7 @@ código, com o Python instalado.
 
 ### Instalar a app
 
-Duplo-clique em **`Output\TaGo-Setup-2.0.exe`** — o instalador normal do
+Duplo-clique em **`Output\TaGo-Setup-3.0.exe`** — o instalador normal do
 Windows, com assistente em português. Funciona em computadores **sem Python
 instalado**, e é este único ficheiro que se dá a quem quiser a app.
 
@@ -30,7 +30,7 @@ Duplo-clique em **`Criar Instalador.bat`**. Demora alguns minutos e só é
 preciso quando o código muda. Faz duas coisas:
 
 1. Constrói o programa para `dist\TaGo\` (com o **PyInstaller**).
-2. Embrulha-o em `Output\TaGo-Setup-2.0.exe` (com o **Inno Setup**).
+2. Embrulha-o em `Output\TaGo-Setup-3.0.exe` (com o **Inno Setup**).
 
 Se o Inno Setup não estiver instalado, o ficheiro trata de o instalar. Se
 mesmo assim faltar, fica na mesma a pasta `dist\` com um
@@ -46,7 +46,7 @@ Num Mac, duplo-clique em **`Criar Instalador Mac.command`**. Faz o mesmo que o
 `.bat` do Windows, mas à maneira de lá:
 
 1. Constrói o `dist/TaGo.app` (com o **PyInstaller**).
-2. Embrulha-o num `Output/TaGo-2.0.dmg`, com o atalho para a pasta Aplicações
+2. Embrulha-o num `Output/TaGo-3.0.dmg`, com o atalho para a pasta Aplicações
    ao lado, usando o **hdiutil** que já vem no macOS.
 
 Para correr a app a partir do código, sem empacotar nada: `python3 app.py`.

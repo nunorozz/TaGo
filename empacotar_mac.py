@@ -23,7 +23,7 @@ PyInstaller nao descobre, a verificacao dos segredos); o que muda e o embrulho:
 1. O **PyInstaller** faz `dist/TaGo.app` - um bundle, que no Finder aparece
    como um so ficheiro e se arrasta para a pasta Aplicacoes.
 2. O **hdiutil**, que ja vem no macOS, poe esse bundle num
-   `Output/TaGo-2.0.dmg` com um atalho para a pasta Aplicacoes ao lado - a
+   `Output/TaGo-3.0.dmg` com um atalho para a pasta Aplicacoes ao lado - a
    janela de instalacao que toda a gente conhece no Mac.
 
 **Isto tem de correr num Mac.** O PyInstaller nao constroi para um sistema a

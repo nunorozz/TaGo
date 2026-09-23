@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import base64
 import os
+import re
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -101,6 +102,81 @@ def nome_a_partir_das_tags(artista: str, titulo: str, caminho_atual) -> str:
             "from those two fields")
     base = f"{artista} - {titulo}" if artista and titulo else (artista or titulo)
     return validar_nome(base, caminho_atual)
+
+
+MISTURA_ORIGINAL = "Original Mix"
+
+# As palavras por que se conhece uma mistura no fim de um titulo. Servem para
+# distinguir o que e mistura do que nao e: "Afrilounge Remix" e, "feat. Ana"
+# nao e - e um titulo acabado em "(feat. Ana)" continua a precisar que se lhe
+# diga a mistura.
+PALAVRAS_MISTURA = frozenset((
+    "mix", "mixes", "remix", "remixes", "edit", "dub", "version", "instrumental",
+    "acapella", "capella", "vip", "rework", "reedit", "bootleg", "remaster",
+    "remastered", "extended", "radio", "club", "live", "original",
+))
+
+# A mistura entre parenteses (ou parenteses rectos) no fim: e assim que o
+# Beatport a manda.
+_FIM_ENTRE_PARENTESES = re.compile(r"[\(\[]([^()\[\]]+)[\)\]]\s*$")
+# A mistura a seguir a um travessao: e assim que o Spotify a manda
+# ("Titulo - Radio Edit"). As outras fontes mandam o titulo cru.
+_FIM_APOS_TRAVESSAO = re.compile(r"\s[-–—]\s*([^-–—]+)$")
+
+
+def _e_mistura(texto: str) -> bool:
+    """Diz se este pedaco de titulo nomeia uma mistura, e nao outra coisa."""
+    palavras = re.findall(r"[a-z]+", (texto or "").lower())
+    return any(p in PALAVRAS_MISTURA for p in palavras)
+
+
+def titulo_com_mistura(titulo: str) -> str:
+    """Devolve o titulo a acabar sempre na mistura, entre parenteses.
+
+    Serve para o nome do ficheiro e para a propria tag Title, que no modo
+    automatico vao dizer a mesma coisa. E idempotente: um titulo que ja passou
+    por aqui volta a sair igual.
+    """
+    titulo = (titulo or "").strip()
+    if not titulo:
+        return ""
+
+    # 1. Ja vem no formato certo: fica como esta.
+    fim = _FIM_ENTRE_PARENTESES.search(titulo)
+    if fim and _e_mistura(fim.group(1)):
+        return titulo
+
+    # 2. Vem depois de um travessao: passa-se para parenteses, para os nomes
+    #    sairem todos no mesmo formato. Um parentese final que nao seja
+    #    mistura ("(feat. Ana)") fica de fora da procura, mas mantem-se.
+    cabeca = titulo[:fim.start()].rstrip() if fim else titulo
+    cauda = titulo[fim.start():].strip() if fim else ""
+    travessao = _FIM_APOS_TRAVESSAO.search(cabeca)
+    if travessao and _e_mistura(travessao.group(1)):
+        mistura = travessao.group(1).strip()
+        cabeca = cabeca[:travessao.start()].rstrip()
+        return " ".join(x for x in (cabeca, cauda, f"({mistura})") if x)
+
+    # 3. Nao traz mistura nenhuma: e a versao original.
+    return f"{titulo} ({MISTURA_ORIGINAL})"
+
+
+def nome_com_mistura(artista: str, titulo: str, caminho_atual) -> str:
+    """Monta o nome "Artista - Titulo (Mistura)" com a extensao do ficheiro.
+
+    E o formato do modo automatico: o nome leva sempre a mistura no fim. Se o
+    titulo ja a traz - entre parenteses como no Beatport, ou depois de um
+    travessao como no Spotify - e essa que vai para o nome; se nao traz
+    nenhuma, e a versao original e junta-se "(Original Mix)".
+    """
+    artista = limpar_para_nome(artista)
+    titulo = limpar_para_nome(titulo)
+    if not artista or not titulo:
+        raise ErroEscrita(
+            "fill in Artist and Title first - the name is built "
+            "from those two fields")
+    return validar_nome(f"{artista} - {titulo_com_mistura(titulo)}",
+                        caminho_atual)
 
 
 def validar_nome(novo_nome: str, caminho_atual) -> str:

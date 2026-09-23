@@ -1,5 +1,5 @@
 @echo off
-rem Constroi o programa e faz o instalador: Output\TaGo-Setup-2.0.exe
+rem Constroi o programa e faz o instalador: Output\TaGo-Setup-3.0.exe
 rem Basta duplo-clique neste ficheiro. Demora alguns minutos.
 cd /d "%~dp0"
 

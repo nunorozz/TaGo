@@ -24,7 +24,7 @@ mesmo, e o Beatport agradece.
 
 NOME = "TaGo"
 DESCRICAO = "Music Tag Editor"
-VERSAO = "2.0"
+VERSAO = "3.0"
 
 # Quem detem os direitos de autor e sob que licenca a app e distribuida. A
 # GPL-3 pede que um programa interativo mostre isto a quem o usa - e o que a
