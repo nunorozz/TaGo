@@ -37,7 +37,12 @@ jobs:
         include:
           - runner: macos-14   # Apple Silicon (M1 e seguintes)
             arquitetura: AppleSilicon
-          - runner: macos-13   # os Macs Intel, que ainda sao muitos
+          # O macos-13 foi retirado em dezembro de 2025 e o job ficava para
+          # sempre na fila, sem runner que o apanhasse - e com ele ficava a
+          # release inteira, que so se publica quando as tres builds acabam.
+          # O macos-15-intel e o substituto oficial e o ultimo x86_64 que o
+          # GitHub oferece: vai ate agosto de 2027.
+          - runner: macos-15-intel   # os Macs Intel, que ainda sao muitos
             arquitetura: Intel
     runs-on: ${{ matrix.runner }}
 
